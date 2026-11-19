@@ -37,6 +37,11 @@ lan-guard.sh off      # remove everything
 
 Ports must be numbers from 1 to 65535; anything else stops the script before it touches the firewall. Run `dry-run` first: it prints, in `iptables-save` syntax, exactly the rules `apply` would create.
 
+Two optional settings in `lan-guard.conf`:
+
+- **`ALLOW`**: LAN addresses that can still reach a blocked port, e.g. `ALLOW=("30002=192.168.1.20")` lets one desktop open the disk health UI. IPv4 or IPv6 addresses, optionally with a prefix (`192.168.1.0/28`); the port must be in `PORTS`, and host names are refused (they would be resolved only once, when the rule is created). Allowed connections leave the lan-guard chains with `RETURN` and continue through the normal Docker and INPUT rules.
+- **`LOG_DROPS="yes"`**: every dropped connection is written to the kernel log with the prefix `lan-guard-drop:`, at most `LOG_LIMIT` lines (default `5/min`) per port and chain, so a scan cannot flood the log. Read them with `dmesg | grep lan-guard-drop` or `journalctl -k -g lan-guard-drop`.
+
 Add it as a **post-init** script and as a cron job every 5 minutes: TrueNAS and Docker can rebuild their firewall rules.
 
 Limits to know:

@@ -14,8 +14,8 @@ In order of priority.
 
 1. **lan-guard**
    - ~~`dry-run` mode that prints the rules without applying them.~~ Done, see the [changelog](CHANGELOG.md).
-   - Per-port allowlist of LAN addresses (e.g. let one desktop reach an admin port).
-   - Optional logging of dropped connections, rate-limited.
+   - ~~Per-port allowlist of LAN addresses (e.g. let one desktop reach an admin port).~~ Done (`ALLOW`).
+   - ~~Optional logging of dropped connections, rate-limited.~~ Done (`LOG_DROPS`).
 2. **storage-status**
    - ~~Age of the last ZFS scrub and its result for every pool.~~ Done, with pool health and per-disk errors.
    - Optional Prometheus *textfile* output next to the JSON file.
