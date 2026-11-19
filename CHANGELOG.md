@@ -2,7 +2,9 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.0] — 2026-11-19
+
+First feature release after 1.0: a safe way to try lan-guard, and pool health in storage-status.
 
 ### Added
 
@@ -40,5 +42,5 @@ First public release: every script made generic, documented and tested.
 - `storage-status`: no crash when a pool reports size 0.
 - `storage-status`: `generated_at` now has a time zone (ISO 8601).
 
-[Unreleased]: https://github.com/EmaLau/truenas-homelab-toolkit/compare/v1.0.0...HEAD
+[1.1.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v1.1.0
 [1.0.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v1.0.0
