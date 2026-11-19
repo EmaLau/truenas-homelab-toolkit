@@ -13,7 +13,7 @@ cp "$SRC/lan-guard/lan-guard.sh" "$W/"
 LG="$W/lan-guard.sh"
 FAIL=0
 
-conf() { printf 'LAN_IF="%s"\nPORTS=(%s)\n' "$1" "$2" > "$W/lan-guard.conf"; }
+conf() { printf 'LAN_IF="%s"\nPORTS=(%s)\n%s\n' "$1" "$2" "${3:-}" > "$W/lan-guard.conf"; }
 count() { $1 -w -S 2>/dev/null | grep -c -- "$2" || true; }
 check() {   # check <description> <expected> <actual>
     if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: expected '$2', got '$3'"; FAIL=1; fi
@@ -24,7 +24,7 @@ state() {   # rules per chain and jumps, for one table
 
 conf eth0 "30001 30002"
 DRY="$(bash "$LG" dry-run 2>/dev/null)"; check "dry-run: exit code" 0 $?
-check "dry-run: one rule per port and chain" 4 "$(grep -c -- '^-A LAN-GUARD' <<<"$DRY")"
+check "dry-run: one rule per port, chain and table" 8 "$(grep -c -- '^-A LAN-GUARD' <<<"$DRY")"
 for T in iptables ip6tables; do check "dry-run: $T untouched" "0 0 0 0" "$(state $T)"; done
 
 conf eth0 "30001 70000"
@@ -39,7 +39,7 @@ bash "$LG" 2>/dev/null; check "apply: exit code" 0 $?
 # options differently, so compare the ports of each chain)
 ports() { grep -- "^-A $2 " <<<"$1" | grep -oE -- '(ctorigdstport|dport) [0-9]+' | awk '{print $2}' | sort | tr '\n' ' '; }
 for C in LAN-GUARD LAN-GUARD-IN; do
-    check "dry-run matches apply: $C" "$(ports "$DRY" "$C")" "$(ports "$(iptables -w -S)" "$C")"
+    check "dry-run matches apply: $C" "$(ports "$(sed '/^$/q' <<<"$DRY")" "$C")" "$(ports "$(iptables -w -S)" "$C")"
 done
 for T in iptables ip6tables; do check "apply: $T rules and jumps" "2 2 1 1" "$(state $T)"; done
 check "apply: TCP only" 0 "$(iptables -w -S | grep -- '-A LAN-GUARD' | grep -vEc -- '-p tcp|--ctproto 6' || true)"
@@ -52,6 +52,32 @@ conf eth0 "30003"
 bash "$LG" 2>/dev/null
 check "new port list replaces the old one" "1 1 1 1" "$(state iptables)"
 check "new port list: right port" 1 "$(count iptables 'ctorigdstport 30003')"
+
+# Allowed addresses and logging. Rule order matters: RETURN, then LOG, then DROP.
+conf eth0 "30001 30002" 'ALLOW=("30002=192.168.1.20" "30002=fd00::20" "30001=10.0.0.0/24")
+LOG_DROPS=yes'
+bash "$LG" 2>/dev/null; check "allow+log: exit code" 0 $?
+order() { $1 -w -S "$2" | grep -- "$3" | sed -E 's/.*-j (RETURN|LOG|DROP).*/\1/' | tr '\n' ' '; }
+check "allow+log: IPv4 forward order, port 30002" "RETURN LOG DROP " "$(order iptables LAN-GUARD 'ctorigdstport 30002')"
+check "allow+log: IPv4 input order, port 30001" "RETURN LOG DROP " "$(order iptables LAN-GUARD-IN 'dport 30001')"
+check "allow+log: IPv4 rule has the address" 1 "$(iptables -w -S LAN-GUARD | grep -c -- '-s 192.168.1.20/32 .*-j RETURN')"
+check "allow+log: IPv6 address only in ip6tables" "1 0" "$(ip6tables -w -S LAN-GUARD | grep -c 'fd00::20') $(iptables -w -S LAN-GUARD | grep -c 'fd00::20')"
+check "allow+log: IPv6 order, port 30001 (no IPv6 allow)" "LOG DROP " "$(order ip6tables LAN-GUARD 'ctorigdstport 30001')"
+check "allow+log: log is rate-limited" 4 "$(iptables -w -S | grep -- '-j LOG' | grep -c -- '-m limit')"
+D2="$(bash "$LG" dry-run 2>/dev/null | sed '/^$/q')"
+check "allow+log: dry-run matches apply" "$(grep -c '^-A LAN-GUARD' <<<"$D2")" "$(iptables -w -S | grep -c '^-A LAN-GUARD')"
+
+conf eth0 "30001" 'ALLOW=("30002=192.168.1.20")'
+check "allow on a port not in PORTS: exit code 1" 1 "$(bash "$LG" >/dev/null 2>&1; echo $?)"
+check "allow on a port not in PORTS: rules unchanged" 1 "$(iptables -w -S LAN-GUARD | grep -c -- '-s 192.168.1.20/32')"
+conf eth0 "30001" 'ALLOW=("30001=nas.lan")'
+check "allow with a host name: exit code 1" 1 "$(bash "$LG" dry-run >/dev/null 2>&1; echo $?)"
+conf eth0 "30001" 'LOG_DROPS=maybe'
+check "bad LOG_DROPS: exit code 1" 1 "$(bash "$LG" dry-run >/dev/null 2>&1; echo $?)"
+
+conf eth0 "30003"
+bash "$LG" 2>/dev/null
+check "back to plain rules: no RETURN or LOG left" 0 "$(iptables -w -S | grep -- '-A LAN-GUARD' | grep -cE -- '-j (RETURN|LOG)' || true)"
 
 check "status: exit code" 0 "$(bash "$LG" status >/dev/null 2>&1; echo $?)"
 

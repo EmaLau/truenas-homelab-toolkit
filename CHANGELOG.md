@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `lan-guard`: `ALLOW` lets chosen LAN addresses (IPv4 or IPv6, with an optional prefix) reach a blocked port; they are checked before the firewall is touched.
+- `lan-guard`: optional logging of dropped connections (`LOG_DROPS`, `LOG_LIMIT`), rate-limited, with the prefix `lan-guard-drop:`.
+
+### Changed
+
+- `lan-guard dry-run` prints the IPv6 rules too, since they can now differ from the IPv4 ones.
+
 ## [1.1.0] — 2026-11-19
 
 First feature release after 1.0: a safe way to try lan-guard, and pool health in storage-status.
@@ -42,5 +53,6 @@ First public release: every script made generic, documented and tested.
 - `storage-status`: no crash when a pool reports size 0.
 - `storage-status`: `generated_at` now has a time zone (ISO 8601).
 
+[Unreleased]: https://github.com/EmaLau/truenas-homelab-toolkit/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v1.1.0
 [1.0.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v1.0.0

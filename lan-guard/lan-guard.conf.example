@@ -4,3 +4,14 @@ LAN_IF="eth0"
 # TCP ports that must not be reachable from the LAN (admin-only apps),
 # e.g. a monitoring dashboard and a disk health UI
 PORTS=(30001 30002)
+
+# Optional: LAN addresses still allowed on a port, as "PORT=ADDRESS[/PREFIX]".
+# IPv4 and IPv6; the port must be listed in PORTS. Host names are not accepted.
+# e.g. let one desktop reach the disk health UI:
+#ALLOW=("30002=192.168.1.20")
+ALLOW=()
+
+# Optional: log dropped connections to the kernel log (dmesg, journalctl -k),
+# with the prefix "lan-guard-drop:", at most LOG_LIMIT lines per port and chain.
+LOG_DROPS="no"
+LOG_LIMIT="5/min"
