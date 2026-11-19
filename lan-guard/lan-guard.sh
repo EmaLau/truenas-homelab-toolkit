@@ -12,7 +12,8 @@
 #
 # Docker-published ports are DNATed before filtering, so the FORWARD path
 # (DOCKER-USER) matches the original port with conntrack; the INPUT path covers
-# connections that reach docker-proxy directly (e.g. IPv6).
+# connections that reach docker-proxy directly (e.g. IPv6). apply and status
+# warn if Docker does not route container traffic through DOCKER-USER.
 set -euo pipefail
 
 # Settings: lan-guard.conf next to this script (see lan-guard.conf.example).
@@ -147,14 +148,28 @@ check_interface() {
     fi
 }
 
+# The forward rules only work if Docker sends container traffic through
+# DOCKER-USER. With Docker's nftables backend (or Docker stopped) nothing jumps
+# there, and published ports are open to the LAN again without any error.
+check_docker_hook() {
+    local T
+    for T in "${TABLES[@]}"; do
+        if ! $T -w -S FORWARD 2>/dev/null | grep -q -- '-j DOCKER-USER'; then
+            echo "lan-guard: $T FORWARD does not jump to DOCKER-USER: traffic to containers is NOT filtered (Docker not running, or using its nftables backend)" >&2
+        fi
+    done
+}
+
 case "$MODE" in
     apply)  check_interface
-            for IPT in "${TABLES[@]}"; do apply "$IPT"; done ;;
+            for IPT in "${TABLES[@]}"; do apply "$IPT"; done
+            check_docker_hook ;;
     off)    for IPT in iptables ip6tables; do
                 if command -v "$IPT" >/dev/null 2>&1; then remove "$IPT"; fi
             done
             echo "LAN guard removed" ;;
     status) check_interface
+            check_docker_hook
             for IPT in "${TABLES[@]}"; do
                 echo "== $IPT"
                 $IPT -w -L "$FWD_CHAIN" -v -n 2>/dev/null || echo "(no $FWD_CHAIN)"
