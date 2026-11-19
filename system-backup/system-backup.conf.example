@@ -45,6 +45,11 @@ MYSQL_DUMPS=()
 ARCHIVES=()
 # Seconds to wait for a stopped app to be RUNNING again
 APP_START_TIMEOUT=300
+# Optional: before stopping an app, wait while it is busy. One "APP|COMMAND|MAX_WAIT_SECONDS"
+# per app: COMMAND exits 0 when the app can be stopped; it is tried every minute. If the
+# app is still busy after MAX_WAIT_SECONDS, it is not stopped and its archive is made live.
+#APP_IDLE_CHECKS=("auto-disk-copy|/mnt/tank/scripts/autodiskcopy-idle.sh|2700")
+APP_IDLE_CHECKS=()
 
 # Healthchecks-style monitoring: pings URL/start, URL on success, URL/fail on
 # failure, so a backup that never ran also raises an alert.
@@ -52,9 +57,12 @@ HEALTHCHECKS_URL=""
 
 # Notifications (ntfy or JSON webhook, as in heartbeat): sent on failure, and
 # on success when NOTIFY_ON="always" or when there were warnings.
+# NOTIFY_FORMAT: ntfy, json or telegram (NOTIFY_URL="https://api.telegram.org/bot<token>/sendMessage",
+# chat in NOTIFY_CHAT_ID).
 NOTIFY_URL=""
 NOTIFY_FORMAT="ntfy"
 NOTIFY_TOKEN=""
+NOTIFY_CHAT_ID=""
 NOTIFY_ON="failure"
 
 # Images used by system-backup-verify.sh --restore. Must be at least the

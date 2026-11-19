@@ -105,6 +105,15 @@ printf 'LAN_IF="eth0"\nPORTS=(nope)\n' >"$R/lan-guard/lan-guard.conf"
 : >"$STATE/calls"
 inst lan-guard; check "invalid lan-guard.conf: exit code 1, nothing called" "1 0" "$? $(grep -c 'create\|update' "$STATE/calls" || true)"
 
+# Schedules from toolkit.conf.
+printf 'LAN_IF="eth0"\nPORTS=(30001)\n' >"$R/lan-guard/lan-guard.conf"
+printf 'SCHEDULE_HEARTBEAT="*/2 * * * *"\n' >"$R/toolkit.conf"
+inst heartbeat
+check "toolkit.conf: heartbeat schedule changed" "*/2" "$(q cronjob "[x['schedule']['minute'] for x in j if x['description'] == 'truenas-homelab-toolkit: heartbeat'][0]")"
+printf 'SCHEDULE_HEARTBEAT="every minute"\n' >"$R/toolkit.conf"
+inst heartbeat; check "toolkit.conf: invalid schedule, exit code 1" 1 $?
+rm "$R/toolkit.conf"
+
 inst --uninstall; check "uninstall: exit code" 0 $?
 check "uninstall: toolkit jobs removed, job made by hand kept" "0 0 1" "$(mine cronjob) $(mine initshutdownscript) $(q cronjob 'len(j)')"
 

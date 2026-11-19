@@ -20,7 +20,9 @@ HEALTHCHECKS_URL=""
 NOTIFY_URL=""
 NOTIFY_FORMAT="ntfy"
 NOTIFY_TOKEN=""
+NOTIFY_CHAT_ID=""
 NOTIFY_ON="failure"
+APP_IDLE_CHECKS=()
 PG_IMAGE="postgres:18-alpine"
 MYSQL_IMAGE="mariadb:11"
 
@@ -42,15 +44,15 @@ load_conf() {
     fi
     # Shared settings (toolkit.conf in the toolkit folder): an empty NOTIFY_URL in
     # system-backup.conf means "use the shared notification settings".
-    local tk="${TOOLKIT_CONF:-$SB_DIR/../toolkit.conf}" tk_notify=("" "" "")
+    local tk="${TOOLKIT_CONF:-$SB_DIR/../toolkit.conf}" tk_notify=("" "" "" "")
     if [ -f "$tk" ]; then
         source_secret "$tk"
-        tk_notify=("$NOTIFY_URL" "$NOTIFY_FORMAT" "$NOTIFY_TOKEN")
-        NOTIFY_URL="" NOTIFY_FORMAT="ntfy" NOTIFY_TOKEN=""
+        tk_notify=("$NOTIFY_URL" "$NOTIFY_FORMAT" "$NOTIFY_TOKEN" "$NOTIFY_CHAT_ID")
+        NOTIFY_URL="" NOTIFY_FORMAT="ntfy" NOTIFY_TOKEN="" NOTIFY_CHAT_ID=""
     fi
     source_secret "$CONF"
     if [ -z "$NOTIFY_URL" ] && [ -n "${tk_notify[0]}" ]; then
-        NOTIFY_URL="${tk_notify[0]}" NOTIFY_FORMAT="${tk_notify[1]:-ntfy}" NOTIFY_TOKEN="${tk_notify[2]}"
+        NOTIFY_URL="${tk_notify[0]}" NOTIFY_FORMAT="${tk_notify[1]:-ntfy}" NOTIFY_TOKEN="${tk_notify[2]}" NOTIFY_CHAT_ID="${tk_notify[3]}"
     fi
     [[ "$BACKUP_DIR" == /* && -d "$BACKUP_DIR" ]] || fail "BACKUP_DIR must be an existing absolute folder (now: '$BACKUP_DIR')"
     BACKUP_DIR="${BACKUP_DIR%/}"
@@ -60,7 +62,15 @@ load_conf() {
     done
     [ "$KEEP_DAILY" -ge 1 ] || fail "KEEP_DAILY must be at least 1"
     case "$TRUENAS_CONFIG" in yes|no) ;; *) fail "TRUENAS_CONFIG must be yes or no" ;; esac
-    case "$NOTIFY_FORMAT" in ntfy|json) ;; *) fail "NOTIFY_FORMAT must be ntfy or json" ;; esac
+    case "$NOTIFY_FORMAT" in ntfy|json|telegram) ;; *) fail "NOTIFY_FORMAT must be ntfy, json or telegram" ;; esac
+    [ "$NOTIFY_FORMAT" != telegram ] || [ -z "$NOTIFY_URL" ] || [ -n "$NOTIFY_CHAT_ID" ] \
+        || fail "NOTIFY_FORMAT=telegram needs NOTIFY_CHAT_ID"
+    local app cmd max
+    for e in ${APP_IDLE_CHECKS[@]+"${APP_IDLE_CHECKS[@]}"}; do
+        IFS='|' read -r app cmd max <<<"$e"
+        [[ "$app" =~ ^[A-Za-z0-9._-]+$ && -n "$cmd" && "$max" =~ ^[0-9]+$ ]] \
+            || fail "invalid APP_IDLE_CHECKS entry '$e': use \"APP|COMMAND|MAX_WAIT_SECONDS\""
+    done
     case "$NOTIFY_ON" in failure|always) ;; *) fail "NOTIFY_ON must be failure or always" ;; esac
     local e kind c u db extra seen=" "
     for e in ${PG_DUMPS[@]+"${PG_DUMPS[@]/#/pg }"} ${MYSQL_DUMPS[@]+"${MYSQL_DUMPS[@]/#/my }"}; do
@@ -106,7 +116,11 @@ notify() {
     local auth=() host
     host="$(hostname)"
     [ -n "$NOTIFY_TOKEN" ] && auth=(-H "Authorization: Bearer $NOTIFY_TOKEN")
-    if [ "$NOTIFY_FORMAT" = json ]; then
+    if [ "$NOTIFY_FORMAT" = telegram ]; then
+        curl -fsS -m 20 -o /dev/null --data-urlencode "chat_id=$NOTIFY_CHAT_ID" \
+            --data-urlencode "text=$([ "$1" = ok ] && echo "✅" || echo "🚨") $host: $2
+$3" "$NOTIFY_URL"
+    elif [ "$NOTIFY_FORMAT" = json ]; then
         python3 -c 'import json,sys,time; print(json.dumps({"host": sys.argv[1], "status": sys.argv[2], "title": sys.argv[3], "msg": sys.argv[4], "time": int(time.time())}))' \
             "$host" "$1" "$2" "$3" \
             | curl -fsS -m 20 -o /dev/null ${auth[@]+"${auth[@]}"} -H "Content-Type: application/json" --data-binary @- "$NOTIFY_URL"

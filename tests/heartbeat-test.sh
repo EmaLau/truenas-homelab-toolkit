@@ -118,6 +118,19 @@ CURL_FAIL=1 run
 check "requests failing: exit code 0" 0 $?
 check "requests failing: one warning each" 2 "$(grep -c 'failed' "$W/stderr")"
 
+# Telegram: chat_id and text as form fields to the sendMessage URL.
+setup 'NOTIFY_URL="https://api.telegram.example/botTOKEN/sendMessage"
+NOTIFY_FORMAT=telegram
+NOTIFY_CHAT_ID="42"
+CHECKS=("web||exit 1")'
+run
+check "telegram: chat and text" 1 "$(calls 'chat_id=42|--data-urlencode|text=.*web is DOWN')"
+check "telegram: sendMessage URL" 1 "$(calls 'https://api.telegram.example/botTOKEN/sendMessage$')"
+setup 'NOTIFY_URL="https://api.telegram.example/botTOKEN/sendMessage"
+NOTIFY_FORMAT=telegram
+CHECKS=("web||true")'
+run; check "telegram without chat id: exit code 1" 1 $?
+
 # Shared settings: an empty value in heartbeat.conf uses toolkit.conf.
 TKF="$(mktemp)"; chmod 600 "$TKF"
 printf 'NOTIFY_URL="https://shared.example/t"\nNOTIFY_FORMAT=json\nKUMA_URL="http://shared-kuma"\n' >"$TKF"

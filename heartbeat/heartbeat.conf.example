@@ -33,8 +33,12 @@ CHECK_TIMEOUT=20
 # Notifications: one message when a check of part 2 or 3 goes down or comes back
 # up (not every minute). NOTIFY_FORMAT=ntfy sends plain text with ntfy headers to
 # a topic URL, e.g. https://ntfy.sh/<topic>; NOTIFY_FORMAT=json posts
-# {"host","check","status","msg","time"} to any webhook.
+# {"host","check","status","msg","time"} to any webhook; NOTIFY_FORMAT=telegram
+# sends a message through a bot: NOTIFY_URL="https://api.telegram.org/bot<token>/sendMessage"
+# and the chat in NOTIFY_CHAT_ID.
 NOTIFY_URL=""
 NOTIFY_FORMAT="ntfy"
-# Optional access token, sent as "Authorization: Bearer <token>"
+# Optional access token, sent as "Authorization: Bearer <token>" (ntfy, json)
 NOTIFY_TOKEN=""
+# Telegram only: the chat id that receives the messages
+NOTIFY_CHAT_ID=""

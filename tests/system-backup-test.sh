@@ -97,6 +97,8 @@ check "backup: archive paths are relative" 0 "$(tar -tzf "$L/archives/live.tar.g
 check "backup: optional missing path is a warning" 1 "$(grep -c 'optional path missing' "$B/out")"
 check "backup: checksums" 0 "$(cd "$L" && sha256sum -c --quiet metadata/SHA256SUMS >/dev/null 2>&1; echo $?)"
 check "backup: status OK with 1 warning" "OK 1" "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["status"], d["warnings"])' "$B/status/last_success.json")"
+check "backup: TrueNAS version in the status, as version and truenas_version" "25.10.8 25.10.8" \
+    "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["version"], d["truenas_version"])' "$B/status/last_success.json")"
 check "backup: Healthchecks start and success" "1 1" "$(calls 'curl https://hc.example/ping/x/start') $(calls 'curl https://hc.example/ping/x$')"
 check "backup: warnings are notified" 1 "$(calls 'curl https://ntfy.example/t')"
 check "backup: permissions 700/600" "700 600" "$(stat -c %a "$L") $(stat -c %a "$L/archives/live.tar.gz")"
@@ -170,7 +172,32 @@ printf 'NOTIFY_URL="https://shared.example/t"\n' >"$B/toolkit.conf"; chmod 600 "
 TOOLKIT_CONF="$B/toolkit.conf" backup
 check "toolkit.conf: failure notified to the shared address" 1 "$(calls 'curl https://shared.example/t')"
 
-# 8. One backup at a time.
+# 8. Waiting for a busy app before stopping it (APP_IDLE_CHECKS).
+export SB_IDLE_POLL=1
+setup 'TRUENAS_CONFIG=no
+APP_IDLE_CHECKS=("uptime-kuma|test -f '"$FAKE"'/idle|2")
+ARCHIVES=("m|uptime-kuma|'"$DATA/kuma"'||")'
+rm -f "$FAKE/idle"
+backup; check "busy app: backup still succeeds" 0 $?
+check "busy app: not stopped, archived live with a warning" "0 1" "$(calls 'app.stop') $(grep -c 'still busy, not stopped' "$B/out")"
+setup 'TRUENAS_CONFIG=no
+APP_IDLE_CHECKS=("uptime-kuma|test -f '"$FAKE"'/idle|30")
+ARCHIVES=("m|uptime-kuma|'"$DATA/kuma"'||")'
+( sleep 2; touch "$FAKE/idle" ) &
+backup; check "app idle after a wait: stopped and started" "0 1 1" "$? $(calls 'app.stop uptime-kuma') $(grep -c 'idle after' "$B/out")"
+wait; rm -f "$FAKE/idle"
+setup 'APP_IDLE_CHECKS=("uptime-kuma|true")'
+backup; check "bad APP_IDLE_CHECKS entry: exit code 1" 1 $?
+
+# 9. Telegram notification on failure.
+setup 'NOTIFY_URL="https://api.telegram.example/botTOKEN/sendMessage"
+NOTIFY_FORMAT=telegram
+NOTIFY_CHAT_ID="42"
+ARCHIVES=("m||'"$DATA/kuma"'||'"$DATA/kuma/missing.db"'")'
+backup
+check "telegram: failure notified to the bot URL" 1 "$(calls 'curl https://api.telegram.example/botTOKEN/sendMessage')"
+
+# 10. One backup at a time.
 setup 'TRUENAS_CONFIG=no
 ARCHIVES=("live||'"$DATA/config"'||")'
 flock "$B/.system-backup.lock" sleep 3 & sleep 0.5

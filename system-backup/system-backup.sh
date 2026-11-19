@@ -54,6 +54,23 @@ start_apps() {
     return "$rc"
 }
 
+# app_idle <app>: true when the app has no APP_IDLE_CHECKS entry, or when its
+# command succeeds within MAX_WAIT_SECONDS (checked every minute).
+app_idle() {
+    local e app cmd max waited=0
+    for e in ${APP_IDLE_CHECKS[@]+"${APP_IDLE_CHECKS[@]}"}; do
+        IFS='|' read -r app cmd max <<<"$e"
+        [ "$app" = "$1" ] || continue
+        until timeout 60 bash -c "$cmd" >/dev/null 2>&1; do
+            [ "$waited" -lt "$max" ] || return 1
+            [ "$waited" -gt 0 ] || log "$1 is busy: waiting up to $((max / 60)) min"
+            sleep "${SB_IDLE_POLL:-60}"; waited=$((waited + ${SB_IDLE_POLL:-60}))
+        done
+        [ "$waited" -eq 0 ] || log "$1 idle after $((waited / 60)) min"
+    done
+    return 0
+}
+
 # shellcheck disable=SC2329  # called by the trap
 finish() {
     local rc=$?
@@ -155,8 +172,14 @@ for E in ${ARCHIVES[@]+"${ARCHIVES[@]}"}; do
         else log "ERROR: archive $NAME: path missing: $P"; exit 1; fi
     done
     [ "${#MEMBERS[@]}" -gt 0 ] || { warn "archive $NAME: nothing to archive"; continue; }
+    LIVE=0; [ "${#APPS_L[@]}" -eq 0 ] && LIVE=1
     for APP in ${APPS_L[@]+"${APPS_L[@]}"}; do
         if [ "$(app_state "$APP")" = RUNNING ]; then
+            if ! app_idle "$APP"; then
+                warn "archive $NAME: $APP still busy, not stopped: archived live"
+                LIVE=1
+                continue
+            fi
             log "Stopping $APP"
             STOPPED+=("$APP")
             midclt call -j app.stop "$APP" >/dev/null
@@ -167,7 +190,7 @@ for E in ${ARCHIVES[@]+"${ARCHIVES[@]}"}; do
     RC=0
     tar --acls --xattrs ${X[@]+"${X[@]}"} -czf "$OUT" -C / "${MEMBERS[@]}" || RC=$?
     # rc 1 = files changed while read: normal for a live archive, an error otherwise.
-    if [ "$RC" -eq 1 ] && [ "${#APPS_L[@]}" -eq 0 ]; then warn "archive $NAME: some files changed while being read (live archive)"
+    if [ "$RC" -eq 1 ] && [ "$LIVE" -eq 1 ]; then warn "archive $NAME: some files changed while being read (live archive)"
     elif [ "$RC" -ne 0 ]; then log "ERROR: archive $NAME: tar failed ($RC)"; exit 1; fi
     start_apps || exit 1
     tar -tzf "$OUT" >"$OUT.list"
@@ -222,7 +245,7 @@ PY
 SIZE="$(du -sb "$FINAL" | cut -f1)"
 DURATION=$(( $(date +%s) - START ))
 write_status "$BACKUP_DIR/status/last_run.json" status=OK timestamp="$STAMP" path="$FINAL" \
-    truenas_version="$VERSION" size_bytes="$SIZE" duration_seconds="$DURATION" warnings="${#WARNINGS[@]}"
+    version="$VERSION" truenas_version="$VERSION" size_bytes="$SIZE" duration_seconds="$DURATION" warnings="${#WARNINGS[@]}"
 cp "$BACKUP_DIR/status/last_run.json" "$BACKUP_DIR/status/last_success.json"
 SUCCESS=1
 log "Backup completed: $FINAL ($(du -sh "$FINAL" | cut -f1), ${DURATION}s, ${#WARNINGS[@]} warnings)"
