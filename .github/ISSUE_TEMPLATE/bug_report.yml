@@ -24,7 +24,7 @@ body:
     id: version
     attributes:
       label: Toolkit version and TrueNAS version
-      description: 'e.g. "1.2.0 on TrueNAS 25.10.8" (`cat /etc/version`)'
+      description: 'e.g. "2.0.0 on TrueNAS 25.10.8" (`cat /etc/version`)'
     validations:
       required: true
   - type: textarea
