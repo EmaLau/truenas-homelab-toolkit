@@ -2,7 +2,7 @@
 
 Where this project is going. Released versions are described in the [changelog](CHANGELOG.md).
 
-**Status:** 1.0.0 released on 2026-11-19. Every script runs in production on one TrueNAS homelab (TrueNAS 25.10), except the system-backup example, which is a simplified copy of the one running there.
+**Status:** 1.1.0 released on 2026-11-19 (1.0.0 the same day). Every script runs in production on one TrueNAS homelab (TrueNAS 25.10), except the system-backup example, which is a simplified copy of the one running there.
 
 ## 1.0 — first public release (done)
 
