@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - `lan-guard`: `ALLOW` lets chosen LAN addresses (IPv4 or IPv6, with an optional prefix) reach a blocked port; they are checked before the firewall is touched.
 - `lan-guard`: optional logging of dropped connections (`LOG_DROPS`, `LOG_LIMIT`), rate-limited, with the prefix `lan-guard-drop:`.
+- `lan-guard`: `apply` and `status` warn when `FORWARD` does not jump to `DOCKER-USER` (Docker stopped, or using its nftables backend): the container rules would then block nothing.
 
 ### Changed
 

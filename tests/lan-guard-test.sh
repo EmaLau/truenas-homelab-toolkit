@@ -79,6 +79,12 @@ conf eth0 "30003"
 bash "$LG" 2>/dev/null
 check "back to plain rules: no RETURN or LOG left" 0 "$(iptables -w -S | grep -- '-A LAN-GUARD' | grep -cE -- '-j (RETURN|LOG)' || true)"
 
+# No Docker in the test container, so FORWARD does not jump to DOCKER-USER yet.
+check "no DOCKER-USER jump: warning" 1 "$(bash "$LG" 2>&1 >/dev/null | grep -c 'iptables FORWARD does not jump')"
+check "no DOCKER-USER jump: warning in status" 1 "$(bash "$LG" status 2>&1 >/dev/null | grep -c 'iptables FORWARD does not jump')"
+for T in iptables ip6tables; do $T -w -A FORWARD -j DOCKER-USER; done   # what Docker does
+check "DOCKER-USER jump present: no warning" 0 "$(bash "$LG" 2>&1 >/dev/null | grep -c 'does not jump' || true)"
+
 check "status: exit code" 0 "$(bash "$LG" status >/dev/null 2>&1; echo $?)"
 
 conf nope0 "30001"

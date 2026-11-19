@@ -49,6 +49,7 @@ Limits to know:
 - **TCP only.** UDP ports stay reachable from the LAN.
 - **IPv4 and IPv6.** If `ip6tables` is missing or IPv6 is disabled in the kernel, IPv6 is skipped with a warning on stderr.
 - **The interface is matched by name.** If `LAN_IF` does not exist (typo, a new network card, a bridge created later), the rules match nothing and the ports are open again. `lan-guard.sh` and `lan-guard.sh status` warn when the interface is missing; the hit counters in `status` staying at 0 is another hint. Check `LAN_IF` after any network change (`ip -br link`).
+- **Docker must use iptables.** The rules for containers live in `DOCKER-USER`, which Docker only uses with its default iptables firewall backend (on TrueNAS, `iptables` itself writes nftables rules, which is fine). If Docker is stopped, or switched to its nftables backend, nothing jumps to `DOCKER-USER` and published ports are open again: `lan-guard.sh` and `lan-guard.sh status` warn when `FORWARD` does not jump to `DOCKER-USER`.
 - Test from a device on the LAN, not over the VPN: VPN traffic is not filtered by design.
 
 ## heartbeat
