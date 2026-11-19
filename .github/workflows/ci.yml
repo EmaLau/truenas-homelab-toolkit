@@ -35,6 +35,9 @@ jobs:
           python-version: '3.11'
       - run: python -m py_compile storage-status/storage-status.py tests/storage-status-test.py
 
+      - name: heartbeat tests (fake curl and docker)
+        run: bash tests/heartbeat-test.sh
+
       - name: storage-status tests (fake midclt, zfs and rclone)
         run: |
           python tests/storage-status-test.py "$RUNNER_TEMP/ss"

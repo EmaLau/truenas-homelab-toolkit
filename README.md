@@ -12,7 +12,7 @@ A collection of small, independent scripts for running a TrueNAS SCALE / Communi
 | Script | What it does | Runs from |
 |---|---|---|
 | [`lan-guard`](#lan-guard) | Blocks admin-only app ports from the home LAN, in IPv4 and IPv6, without touching SSH, the web UI or VPN access | init script + cron every 5 min |
-| [`heartbeat`](#heartbeat) | Pings an external monitor every minute, so you get an alert when the NAS itself goes down | cron every minute |
+| [`heartbeat`](#heartbeat) | Pings an external monitor every minute, so you get an alert when the NAS itself goes down; runs your own checks and notifies ntfy or a webhook when they change | cron every minute |
 | [`storage-status`](#storage-status) | Writes pool health and usage, cloud storage usage, cloud sync results and snapshot age/size to one JSON file for dashboards, and optionally Prometheus metrics | cron every 30 min |
 | [`examples/system-backup.sh`](#system-backup-example) | A nightly backup of the TrueNAS configuration, app databases and app folders, with checksums and retention | cron nightly |
 
@@ -56,18 +56,29 @@ Limits to know:
 
 **Why.** A monitoring tool that runs on the NAS cannot tell you the NAS is down: when the box freezes, loses power or drops off the internet, it goes silent with everything else, and silence looks exactly like "all good". The check has to be turned around: the NAS proves it is alive every minute, and something *outside* raises the alarm when the proof stops arriving.
 
-`heartbeat.sh` runs every minute from cron and has two independent parts. Both are optional: a part without its settings is skipped.
+`heartbeat.sh` runs every minute from cron and has three independent parts, plus notifications. All are optional: a part without its settings is skipped.
 
 ```bash
 cp heartbeat/heartbeat.conf.example heartbeat/heartbeat.conf
 chmod 600 heartbeat/heartbeat.conf    # the URLs inside work as passwords
 ```
 
-**1. NAS alive → Healthchecks.** Pings an external service such as [Healthchecks.io](https://healthchecks.io) (free plan, or self-hosted elsewhere). When the NAS shuts down or loses internet, the pings stop and Healthchecks alerts you, from outside the NAS. Set `HEALTHCHECKS_URL` to the check's ping URL and the check period to 1 minute.
+**1. NAS alive → Healthchecks.** Pings an external service such as [Healthchecks.io](https://healthchecks.io) (free plan, or self-hosted elsewhere). When the NAS shuts down or loses internet, the pings stop and Healthchecks alerts you, from outside the NAS. Set `HEALTHCHECKS_URL` to the check's ping URL and the check period to 1 minute. Any service that takes a plain GET as a heartbeat works the same way (for example an Uptime Kuma push URL on another machine).
 
 **2. Tailscale state → Uptime Kuma.** Pushes `up` or `down` to an Uptime Kuma *push* monitor, depending on whether the Tailscale container reports `Running`. Useful when Tailscale is how you reach the NAS from outside. Set `KUMA_URL` (base address of Kuma) and `KUMA_TOKEN` (last part of the push URL); `TAILSCALE_CONTAINER` defaults to `ix-tailscale-tailscale-1`, the name TrueNAS gives the Tailscale app.
 
-The script warns on stderr if `heartbeat.conf` is readable by other users, and exits with an error if no part is configured. A `PAUSE` file in the folder suspends it (e.g. during maintenance).
+**3. Generic checks → Uptime Kuma.** `CHECKS` lists commands, one per entry, as `"NAME|KUMA_TOKEN|COMMAND"`. Each command runs with bash and a time limit (`CHECK_TIMEOUT`, default 20 s): exit code 0 is up, anything else (or a timeout) is down, and the first line of its output becomes the message. With a token, the result goes to its own Kuma push monitor, together with the time the command took; without one, the check only feeds the notifications.
+
+```bash
+CHECKS=(
+  "pools|<kuma-token>|zpool status -x | grep -q 'all pools are healthy'"
+  "nextcloud||curl -fsS -m 5 -o /dev/null http://127.0.0.1:30027/status.php"
+)
+```
+
+**Notifications → ntfy or a webhook.** With `NOTIFY_URL` set, the Tailscale part and every check send one message when their state changes: when they go down and when they come back up, not every minute. The state is kept in a `state/` folder next to the script; on the first run only checks that are down notify. `NOTIFY_FORMAT=ntfy` (default) posts plain text with ntfy's title, tag and priority headers to a topic URL such as `https://ntfy.sh/<topic>`; `NOTIFY_FORMAT=json` posts `{"host", "check", "status", "msg", "time"}` to any webhook. `NOTIFY_TOKEN`, if set, is sent as `Authorization: Bearer <token>`. These only report checks: a NAS that is off cannot notify anything, which is what part 1 is for.
+
+The script warns on stderr if `heartbeat.conf` is readable by other users, and exits with an error if no part is configured or a setting is invalid. Only one run at a time: if the previous one is still going (slow checks), the next one is skipped. A `PAUSE` file in the folder suspends it (e.g. during maintenance).
 
 ## storage-status
 
@@ -152,6 +163,12 @@ Cloud status is `OK`, `LOW` (under `WARN_PCT` free), `CRITICAL` (under `CRIT_PCT
 - work in an `.incomplete-*` folder, renamed only at the end.
 
 ## Tests
+
+`tests/heartbeat-test.sh` runs heartbeat with fake `curl` and `docker` commands (nothing is sent anywhere) and checks the pushes, the checks, the notifications and the lock. It needs bash 5, GNU `timeout`, `flock` and python3, as on TrueNAS:
+
+```bash
+bash tests/heartbeat-test.sh
+```
 
 `tests/storage-status-test.py` runs storage-status against fake `midclt`, `zfs` and `rclone` commands that answer from `tests/storage-status.fixtures.json` (invented data, shaped like TrueNAS 25.10), and checks the JSON, the Prometheus file, the error handling and the settings:
 
