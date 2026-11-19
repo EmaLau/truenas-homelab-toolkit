@@ -29,14 +29,31 @@ NOTIFY_FORMAT="ntfy" # ntfy (plain text + headers) or json
 NOTIFY_TOKEN=""      # optional: sent as "Authorization: Bearer <token>"
 
 [ -f "$DIR/PAUSE" ] && exit 0
-if [ -f "$CONF" ]; then
-  # The file holds secret URLs: warn if other users can read it.
-  if [ -n "$(find "$CONF" -perm /044 2>/dev/null)" ]; then
-    echo "heartbeat: $CONF is readable by other users, run: chmod 600 $CONF" >&2
+# Warn about untested TrueNAS versions, only when run by hand (not from cron).
+if [ -t 2 ] && [ -r /etc/version ] && [[ "$(cat /etc/version)" != 25.10* ]]; then
+  echo "heartbeat: TrueNAS $(cat /etc/version) has not been tested (tested: 25.10)" >&2
+fi
+load() {   # source a settings file, warning if other users can read its secrets
+  if [ -n "$(find "$1" -perm /044 2>/dev/null)" ]; then
+    echo "heartbeat: $1 is readable by other users, run: chmod 600 $1" >&2
   fi
   # shellcheck source=/dev/null
-  . "$CONF"
+  . "$1"
+}
+# Shared settings (toolkit.conf in the toolkit folder): an empty value in
+# heartbeat.conf means "use the shared one". Notification settings go together.
+TK="${TOOLKIT_CONF:-$DIR/../toolkit.conf}"
+TK_NOTIFY=("" "" "") TK_KUMA_URL=""
+if [ -f "$TK" ]; then
+  load "$TK"
+  TK_NOTIFY=("$NOTIFY_URL" "$NOTIFY_FORMAT" "$NOTIFY_TOKEN") TK_KUMA_URL="$KUMA_URL"
+  NOTIFY_URL="" NOTIFY_FORMAT="ntfy" NOTIFY_TOKEN="" KUMA_URL=""
 fi
+[ -f "$CONF" ] && load "$CONF"
+if [ -z "$NOTIFY_URL" ] && [ -n "${TK_NOTIFY[0]}" ]; then
+  NOTIFY_URL="${TK_NOTIFY[0]}" NOTIFY_FORMAT="${TK_NOTIFY[1]:-ntfy}" NOTIFY_TOKEN="${TK_NOTIFY[2]}"
+fi
+[ -n "$KUMA_URL" ] || KUMA_URL="$TK_KUMA_URL"
 
 fail() { echo "heartbeat: $*" >&2; exit 1; }
 for C in ${CHECKS[@]+"${CHECKS[@]}"}; do

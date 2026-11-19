@@ -36,6 +36,17 @@ REFRESHED_KEYS = ("token",)
 SECTIONS = ("pools", "cloud", "cloud_sync", "snapshots")
 
 
+def warn_untested_version():
+    """Warn about untested TrueNAS versions, only when run by hand (not from cron)."""
+    try:
+        with open("/etc/version") as f:
+            version = f.read().strip()
+    except OSError:
+        return
+    if sys.stderr.isatty() and not version.startswith("25.10"):
+        log(f"TrueNAS {version} has not been tested (tested: 25.10)")
+
+
 def load_settings():
     """KEY="value" lines from the settings file, then the environment."""
     path = os.environ.get("STORAGE_STATUS_CONF") or os.path.join(
@@ -400,6 +411,7 @@ def write_atomic(path, text):
 
 
 def main():
+    warn_untested_version()
     cfg = load_settings()
     now = time.time()
     out = {

@@ -16,7 +16,32 @@ A collection of small, independent scripts for running a TrueNAS SCALE / Communi
 | [`storage-status`](#storage-status) | Writes pool health and usage, cloud storage usage, cloud sync results and snapshot age/size to one JSON file for dashboards, and optionally Prometheus metrics | cron every 30 min |
 | [`system-backup`](#system-backup) | A nightly backup of the TrueNAS configuration, app settings, PostgreSQL and MariaDB databases and app folders, with checksums, retention and a verify script that restores the databases | cron nightly |
 
-All scripts run as root from TrueNAS cron jobs or init scripts (System → Advanced). Keep them on a data pool, not on the boot pool.
+All scripts run as root from TrueNAS cron jobs or init scripts (System → Advanced). Keep them on a data pool, not on the boot pool. Tested on TrueNAS 25.10; run by hand on another version, each script prints a warning.
+
+## Install
+
+Clone the repository on a data pool, copy the `*.conf.example` of the scripts you want to `*.conf` (next to the example) and fill them in, then let `install.sh` create the cron jobs and init scripts through the TrueNAS middleware:
+
+```bash
+git clone https://github.com/EmaLau/truenas-homelab-toolkit.git /mnt/tank/toolkit
+cd /mnt/tank/toolkit
+cp lan-guard/lan-guard.conf.example lan-guard/lan-guard.conf          # and so on
+./install.sh --dry-run      # show what would be created
+./install.sh                # create or update the jobs (--disabled: create them switched off)
+./install.sh --uninstall    # remove them
+```
+
+| Script | Job |
+|---|---|
+| lan-guard | at boot (post-init) and every 5 minutes |
+| heartbeat | every minute |
+| storage-status | every 30 minutes |
+| system-backup | every day at 03:00 |
+| system-backup-verify | Sundays at 05:00, with `--restore` |
+
+Without arguments, `install.sh` installs every script that has its settings file; name scripts to choose (`./install.sh heartbeat storage-status`). Jobs are recognised by their description, so running it again, for example after moving the folder, updates them instead of adding copies. Jobs you made by hand that run the same scripts are reported, not touched: remove them, or the scripts run twice. You can of course create the jobs yourself in System → Advanced instead.
+
+**Shared settings.** `toolkit.conf` (see `toolkit.conf.example`) holds what several scripts share: the notification settings used by heartbeat and system-backup, and the Uptime Kuma address. A value left empty in a script's own settings file falls back to it.
 
 ## lan-guard
 
@@ -177,6 +202,8 @@ For alerts, `HEALTHCHECKS_URL` gets a ping at the start, on success and on failu
 `examples/system-backup.sh` is the original script these came from, kept as a reference: it is tied to one homelab and includes app-specific logic (waiting for one app to be idle before stopping it, Telegram notifications).
 
 ## Tests
+
+`tests/install-test.sh` runs install.sh against a fake middleware (create, update after moving the folder, jobs made by hand, uninstall).
 
 `tests/system-backup-test.sh` runs system-backup and system-backup-verify with fake `midclt` and `curl` (configuration, app settings, stopping and restarting apps, failures, retention, the lock); `tests/system-backup-restore-test.sh` backs up real PostgreSQL 16 and MariaDB 11 containers and restores the dumps with `--restore` (needs Docker):
 

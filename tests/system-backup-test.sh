@@ -47,6 +47,7 @@ echo "curl $url" >>"$FAKE/calls"
 EOF
 chmod +x "$T/bin/midclt" "$T/bin/curl"
 export PATH="$T/bin:$PATH"
+export TOOLKIT_CONF=/nonexistent   # no shared settings unless a test sets them
 
 check() {   # check <description> <expected> <actual>
     if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: expected '$2', got '$3'"; FAIL=1; fi
@@ -162,7 +163,14 @@ for bad in 'KEEP_DAILY=0' 'PG_DUMPS=("only two")' 'MYSQL_DUMPS=("db app shop" "d
     check "bad settings ($bad): exit code 1, nothing written" "1 0" "$rc $(find "$B" -mindepth 1 -maxdepth 1 ! -name system-backup.conf ! -name out | wc -l)"
 done
 
-# 7. One backup at a time.
+# 7. Shared notification settings from toolkit.conf when NOTIFY_URL is empty.
+setup 'NOTIFY_URL=""
+ARCHIVES=("monitoring|uptime-kuma|'"$DATA/kuma"'||'"$DATA/kuma/missing.db"'")'
+printf 'NOTIFY_URL="https://shared.example/t"\n' >"$B/toolkit.conf"; chmod 600 "$B/toolkit.conf"
+TOOLKIT_CONF="$B/toolkit.conf" backup
+check "toolkit.conf: failure notified to the shared address" 1 "$(calls 'curl https://shared.example/t')"
+
+# 8. One backup at a time.
 setup 'TRUENAS_CONFIG=no
 ARCHIVES=("live||'"$DATA/config"'||")'
 flock "$B/.system-backup.lock" sleep 3 & sleep 0.5

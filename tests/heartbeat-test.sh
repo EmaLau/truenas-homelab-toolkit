@@ -26,6 +26,7 @@ printf '{"BackendState": "%s"}\n' "$TS_STATE"
 EOF
 chmod +x "$BIN/curl" "$BIN/docker"
 export PATH="$BIN:$PATH"
+export TOOLKIT_CONF=/nonexistent   # no shared settings unless a test sets them
 
 check() {   # check <description> <expected> <actual>
     if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: expected '$2', got '$3'"; FAIL=1; fi
@@ -116,6 +117,23 @@ CHECKS=("x|t|true")'
 CURL_FAIL=1 run
 check "requests failing: exit code 0" 0 $?
 check "requests failing: one warning each" 2 "$(grep -c 'failed' "$W/stderr")"
+
+# Shared settings: an empty value in heartbeat.conf uses toolkit.conf.
+TKF="$(mktemp)"; chmod 600 "$TKF"
+printf 'NOTIFY_URL="https://shared.example/t"\nNOTIFY_FORMAT=json\nKUMA_URL="http://shared-kuma"\n' >"$TKF"
+setup 'NOTIFY_URL=""
+NOTIFY_FORMAT="ntfy"
+KUMA_URL=""
+CHECKS=("web|t9|exit 1")'
+TOOLKIT_CONF="$TKF" run
+check "toolkit.conf: Kuma address used" 1 "$(calls 'http://shared-kuma/api/push/t9')"
+check "toolkit.conf: notification settings used together" 1 "$(calls 'Content-Type: application/json|--data-binary|@-|https://shared.example/t')"
+setup 'NOTIFY_URL="https://own.example/t"
+CHECKS=("web||exit 1")'
+TOOLKIT_CONF="$TKF" run
+check "toolkit.conf: own NOTIFY_URL wins, with its own format" 1 "$(calls 'Title: .*web is DOWN.*https://own.example/t')"
+check "toolkit.conf: shared address not used" 0 "$(calls 'shared.example')"
+rm -f "$TKF"
 
 # A run still in progress keeps the lock: the next one skips.
 setup 'HEALTHCHECKS_URL="https://hc.example/ping/abc"'

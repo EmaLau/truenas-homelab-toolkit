@@ -17,6 +17,9 @@ All notable changes to this project are documented here. The format follows [Kee
 - `storage-status`: `generated_epoch`, `thresholds` and `errors` at the top of the JSON. New fields only: `schema_version` stays 1.
 - `tests/storage-status-test.py`: storage-status tested in CI against fake `midclt`, `zfs` and `rclone`.
 
+- `install.sh`: creates or updates the cron jobs and init scripts through the TrueNAS middleware (`--dry-run`, `--disabled`, `--uninstall`); recognises its own jobs, so it can be run again, and reports jobs made by hand that run the same scripts.
+- `toolkit.conf`: optional settings shared by heartbeat and system-backup (notifications, Uptime Kuma address); an empty value in a script's own file falls back to it.
+- Every script warns, when run by hand, on a TrueNAS version it has not been tested on (tested: 25.10).
 - `system-backup/system-backup.sh`: a generic nightly backup driven by `system-backup.conf`: TrueNAS configuration with the secret seed, `app.config` (or every app), PostgreSQL and **MariaDB/MySQL** dumps checked right away, folder archives each with its own apps to stop, checksums, manifest, retention (daily, then monthly, `.keep`), Healthchecks pings and ntfy/webhook notifications. Runs without TrueNAS when the TrueNAS parts are off.
 - `system-backup/system-backup-verify.sh`: checks a backup (checksums, configuration database integrity and secret seed, archives read to the end, dump formats); with `--restore`, restores every database into a throwaway container and counts its tables.
 - `tests/system-backup-test.sh` (fake `midclt` and `curl`) and `tests/system-backup-restore-test.sh` (real PostgreSQL 16 and MariaDB 11, restored into PostgreSQL 18 and MariaDB 11), both in CI.

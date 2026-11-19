@@ -16,6 +16,11 @@
 # warn if Docker does not route container traffic through DOCKER-USER.
 set -euo pipefail
 
+# Warn about untested TrueNAS versions, only when run by hand (not from cron).
+if [ -t 2 ] && [ -r /etc/version ] && [[ "$(cat /etc/version)" != 25.10* ]]; then
+    echo "lan-guard: TrueNAS $(cat /etc/version) has not been tested (tested: 25.10)" >&2
+fi
+
 # Settings: lan-guard.conf next to this script (see lan-guard.conf.example).
 LAN_IF="eth0"
 PORTS=()

@@ -27,13 +27,31 @@ MYSQL_IMAGE="mariadb:11"
 fail() { echo "system-backup: $*" >&2; exit 1; }
 log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 
-load_conf() {
-    [ -f "$CONF" ] || fail "settings file $CONF not found (see system-backup.conf.example)"
-    if [ -n "$(find "$CONF" -perm /044 2>/dev/null)" ]; then
-        echo "system-backup: $CONF is readable by other users, run: chmod 600 $CONF" >&2
+source_secret() {   # source a settings file, warning if other users can read it
+    if [ -n "$(find "$1" -perm /044 2>/dev/null)" ]; then
+        echo "system-backup: $1 is readable by other users, run: chmod 600 $1" >&2
     fi
     # shellcheck source=/dev/null
-    . "$CONF"
+    . "$1"
+}
+
+load_conf() {
+    [ -f "$CONF" ] || fail "settings file $CONF not found (see system-backup.conf.example)"
+    if [ -t 2 ] && [ -r /etc/version ] && [[ "$(cat /etc/version)" != 25.10* ]]; then
+        echo "system-backup: TrueNAS $(cat /etc/version) has not been tested (tested: 25.10)" >&2
+    fi
+    # Shared settings (toolkit.conf in the toolkit folder): an empty NOTIFY_URL in
+    # system-backup.conf means "use the shared notification settings".
+    local tk="${TOOLKIT_CONF:-$SB_DIR/../toolkit.conf}" tk_notify=("" "" "")
+    if [ -f "$tk" ]; then
+        source_secret "$tk"
+        tk_notify=("$NOTIFY_URL" "$NOTIFY_FORMAT" "$NOTIFY_TOKEN")
+        NOTIFY_URL="" NOTIFY_FORMAT="ntfy" NOTIFY_TOKEN=""
+    fi
+    source_secret "$CONF"
+    if [ -z "$NOTIFY_URL" ] && [ -n "${tk_notify[0]}" ]; then
+        NOTIFY_URL="${tk_notify[0]}" NOTIFY_FORMAT="${tk_notify[1]:-ntfy}" NOTIFY_TOKEN="${tk_notify[2]}"
+    fi
     [[ "$BACKUP_DIR" == /* && -d "$BACKUP_DIR" ]] || fail "BACKUP_DIR must be an existing absolute folder (now: '$BACKUP_DIR')"
     BACKUP_DIR="${BACKUP_DIR%/}"
     local n

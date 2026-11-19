@@ -22,11 +22,11 @@ In order of priority.
 3. **heartbeat**
    - ~~Generic checks: any command whose exit code becomes an up/down push, so one script can watch several services.~~ Done (`CHECKS`), with notifications to ntfy or a webhook.
 4. ~~**system-backup, generic version**~~ Done: `system-backup/`, with MariaDB/MySQL and a verify script that restores the databases. The original idea: a new script driven by a config file (pools, apps to archive, PostgreSQL containers to dump, retention), keeping the verified-backup ideas of the example: verified `config.save`, `pg_dump` checked with `pg_restore --list`, checksums, manifest, `.incomplete-*` folders.
-5. **Installer helpers**: create the post-init script and cron jobs through the TrueNAS middleware instead of by hand.
+5. ~~**Installer helpers**: create the post-init script and cron jobs through the TrueNAS middleware instead of by hand.~~ Done (`install.sh`), with a warning on untested TrueNAS versions.
 
 ## Maybe later
 
-- A single `toolkit.conf` shared by all scripts.
+- ~~A single `toolkit.conf` shared by all scripts.~~ Done for the settings that are actually shared (notifications, Uptime Kuma address); each script keeps its own file for the rest.
 - ~~Tests for `storage-status` with recorded `midclt` outputs.~~ Done (`tests/storage-status-test.py`).
 
 ## Not planned

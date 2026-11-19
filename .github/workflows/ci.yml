@@ -41,6 +41,9 @@ jobs:
       - name: system-backup tests (fake midclt and curl)
         run: bash tests/system-backup-test.sh
 
+      - name: install.sh tests (fake middleware)
+        run: bash tests/install-test.sh
+
       - name: storage-status tests (fake midclt, zfs and rclone)
         run: |
           python tests/storage-status-test.py "$RUNNER_TEMP/ss"
