@@ -13,7 +13,7 @@ A collection of small, independent scripts for running a TrueNAS SCALE / Communi
 |---|---|---|
 | [`lan-guard`](#lan-guard) | Blocks admin-only app ports from the home LAN, in IPv4 and IPv6, without touching SSH, the web UI or VPN access | init script + cron every 5 min |
 | [`heartbeat`](#heartbeat) | Pings an external monitor every minute, so you get an alert when the NAS itself goes down | cron every minute |
-| [`storage-status`](#storage-status) | Writes pool usage, cloud storage usage and snapshot age/size to one JSON file for dashboards | cron every 30 min |
+| [`storage-status`](#storage-status) | Writes pool health and usage, cloud storage usage, cloud sync results and snapshot age/size to one JSON file for dashboards, and optionally Prometheus metrics | cron every 30 min |
 | [`examples/system-backup.sh`](#system-backup-example) | A nightly backup of the TrueNAS configuration, app databases and app folders, with checksums and retention | cron nightly |
 
 All scripts run as root from TrueNAS cron jobs or init scripts (System → Advanced). Keep them on a data pool, not on the boot pool.
@@ -78,18 +78,34 @@ Collects, through the TrueNAS middleware (`midclt`), `zfs` and `rclone`:
 - status, size and free space of every pool;
 - pool health, the last scrub or resilver (state, errors, age) and every disk with its read, write and checksum error counters;
 - used and free space of the cloud credentials that report it: **OneDrive and Google Drive** only, other providers are skipped;
+- the last run of every cloud sync task: state (`SUCCESS`, `FAILED`, `RUNNING`…), start, end and error;
 - space used by snapshots in every pool;
 - for every dataset with a periodic snapshot task: number of snapshots, the newest one and its age, space used. Snapshots are matched with the task's naming schema, so manual snapshots are not counted.
 
-The result is a single JSON file (`$STORAGE_STATUS_OUT`, default `/var/tmp/storage_status.json`), written atomically, that a dashboard or a bot can read without credentials. Values are raw numbers (bytes, Unix timestamps, hours): formatting is up to the dashboard. The format is described by [`docs/storage-status.schema.json`](docs/storage-status.schema.json):
+```bash
+cp storage-status/storage-status.conf.example storage-status/storage-status.conf   # optional
+```
+
+Settings, all optional, in `storage-status.conf` next to the script (or the file named by `$STORAGE_STATUS_CONF`); environment variables with the same names override them:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `STORAGE_STATUS_OUT` | `/var/tmp/storage_status.json` | Where to write the JSON file |
+| `PROMETHEUS_OUT` | empty (off) | Also write Prometheus metrics to this file |
+| `WARN_PCT`, `CRIT_PCT` | `20`, `10` | Free space (percent) below which pools and cloud storage are `LOW` or `CRITICAL` |
+
+The result is a single JSON file, written atomically, that a dashboard or a bot can read without credentials. Values are raw numbers (bytes, Unix timestamps, hours): formatting is up to the dashboard. The format is described by [`docs/storage-status.schema.json`](docs/storage-status.schema.json):
 
 ```json
 {
  "schema_version": 1,
  "generated_at": "2026-11-19T16:31:30+01:00",
+ "generated_epoch": 1795102290,
+ "thresholds": {"warn_pct": 20, "crit_pct": 10},
+ "errors": {},
  "pools": {
   "tank": {"status": "ONLINE", "size": 27986006900736, "free": 27234230513664, "used": 751776387072, "free_pct": 97,
-           "healthy": true,
+           "space_status": "OK", "healthy": true,
            "scan": {"function": "SCRUB", "state": "FINISHED", "start": 1792879202, "end": 1792879863,
                     "errors": 0, "progress_pct": null, "age_hours": 619.67},
            "disks": [
@@ -99,6 +115,10 @@ The result is a single JSON file (`$STORAGE_STATUS_OUT`, default `/var/tmp/stora
  "cloud": {
   "Microsoft OneDrive": {"id": 1, "provider": "onedrive", "status": "OK",
                          "total": 1239098064896, "used": 24910810317, "free": 1214187254579, "free_pct": 98}
+ },
+ "cloud_sync": {
+  "Documents to OneDrive": {"id": 1, "credential": "Microsoft OneDrive", "direction": "PUSH", "enabled": true,
+                            "state": "SUCCESS", "started": 1795064402, "finished": 1795064450, "age_hours": 10.5, "error": null}
  },
  "snapshot_space": {"tank": 8137539432, "boot-pool": 227655680},
  "snapshots": {
@@ -110,7 +130,11 @@ The result is a single JSON file (`$STORAGE_STATUS_OUT`, default `/var/tmp/stora
 
 ZFS keeps only the most recent scan of a pool, so `scan` is the last scrub *or* resilver. A full example, with a degraded pool during a resilver and an offline pool, is in [`tests/storage-status.example.json`](tests/storage-status.example.json). New fields can be added without changing `schema_version`, which only goes up on incompatible changes.
 
-Cloud status is `OK`, `LOW` (under 20 % free), `CRITICAL` (under 10 %) or `ERROR` (with an `error` field).
+Cloud status is `OK`, `LOW` (under `WARN_PCT` free), `CRITICAL` (under `CRIT_PCT`) or `ERROR` (with an `error` field); pools get the same levels in `space_status`.
+
+**Errors.** Each section (`pools`, `cloud`, `cloud_sync`, `snapshots`) is collected on its own. If one fails (a middleware call times out, `zfs` errors), the file is still written with the other sections complete, the failed one is listed in `errors` with its message, and the script exits with status 1, so the cron job reports it.
+
+**Prometheus.** With `PROMETHEUS_OUT` set, the same data is also written as gauges named `storage_status_*`, for node_exporter's *textfile* collector: point `PROMETHEUS_OUT` into the folder given to `--collector.textfile.directory`. For example `storage_status_pool_healthy{pool="tank"}`, `storage_status_disk_errors{pool,disk,type}`, `storage_status_cloudsync_success{task,id}`, `storage_status_snapshot_last_timestamp_seconds{dataset}` and `storage_status_section_ok{section}`.
 
 **Cloud tokens.** To read the cloud space, the script passes the TrueNAS cloud credentials to `rclone about` through a temporary config file (mode 600, deleted afterwards). rclone refreshes OAuth tokens when they expire; like TrueNAS after a cloud sync, the script saves the refreshed token back to the credential (`cloudsync.credentials.update`), so the stored one never goes stale.
 
@@ -128,6 +152,12 @@ Cloud status is `OK`, `LOW` (under 20 % free), `CRITICAL` (under 10 %) or `ERROR
 - work in an `.incomplete-*` folder, renamed only at the end.
 
 ## Tests
+
+`tests/storage-status-test.py` runs storage-status against fake `midclt`, `zfs` and `rclone` commands that answer from `tests/storage-status.fixtures.json` (invented data, shaped like TrueNAS 25.10), and checks the JSON, the Prometheus file, the error handling and the settings:
+
+```bash
+python3 tests/storage-status-test.py
+```
 
 `tests/lan-guard-test.sh` checks lan-guard against a real firewall inside a throwaway container (it refuses to run anywhere else):
 

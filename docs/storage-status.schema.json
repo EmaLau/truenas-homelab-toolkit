@@ -15,6 +15,37 @@
       "type": "string",
       "format": "date-time"
     },
+    "generated_epoch": {"description": "Same moment as generated_at, as a Unix timestamp. Added in 1.2.0.", "type": "integer"},
+    "thresholds": {
+      "description": "Free space thresholds used for space_status and cloud status (WARN_PCT and CRIT_PCT). Added in 1.2.0.",
+      "type": "object",
+      "required": ["warn_pct", "crit_pct"],
+      "properties": {"warn_pct": {"$ref": "#/$defs/percent"}, "crit_pct": {"$ref": "#/$defs/percent"}}
+    },
+    "errors": {
+      "description": "Sections that could not be collected (pools, cloud, cloud_sync, snapshots), with the error. The section is then empty or partial; the script exits with status 1. Added in 1.2.0.",
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "cloud_sync": {
+      "description": "Last run of every cloud sync task, by task description (a repeated description gets the task id in brackets). Added in 1.2.0.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "credential", "direction", "enabled", "state", "started", "finished", "age_hours", "error"],
+        "properties": {
+          "id": {"description": "Task id in TrueNAS.", "type": "integer"},
+          "credential": {"description": "Name of the cloud credential.", "type": ["string", "null"]},
+          "direction": {"description": "PUSH or PULL.", "type": ["string", "null"]},
+          "enabled": {"type": ["boolean", "null"]},
+          "state": {"description": "State of the last job: SUCCESS, FAILED, ABORTED, RUNNING or WAITING; null if the task never ran since the job history was cleared.", "type": ["string", "null"]},
+          "started": {"type": ["integer", "null"]},
+          "finished": {"type": ["integer", "null"]},
+          "age_hours": {"description": "Hours since the last run finished.", "type": ["number", "null"]},
+          "error": {"description": "Error of the last run, at most 300 characters.", "type": ["string", "null"]}
+        }
+      }
+    },
     "pools": {
       "description": "Every pool returned by pool.query, by pool name. The boot pool is not included.",
       "type": "object",
@@ -27,6 +58,7 @@
           "free": {"$ref": "#/$defs/bytes"},
           "used": {"$ref": "#/$defs/bytes"},
           "free_pct": {"$ref": "#/$defs/percent"},
+          "space_status": {"description": "OK, LOW (free_pct below warn_pct) or CRITICAL (below crit_pct); null when free_pct is unknown. Added in 1.2.0.", "enum": ["OK", "LOW", "CRITICAL", null]},
           "healthy": {"description": "TrueNAS verdict on the pool (status, errors, scan results). Added in 1.1.0.", "type": ["boolean", "null"]},
           "scan": {
             "description": "Last scrub or resilver; ZFS keeps only the most recent one. Null if the pool was never scanned. Added in 1.1.0.",
@@ -71,7 +103,7 @@
           "id": {"description": "Credential id in TrueNAS.", "type": "integer"},
           "provider": {"enum": ["onedrive", "google_drive"]},
           "status": {
-            "description": "OK; LOW below 20% free; CRITICAL below 10% free; ERROR when rclone could not read the space.",
+            "description": "OK; LOW below warn_pct free (default 20); CRITICAL below crit_pct free (default 10); ERROR when rclone could not read the space.",
             "enum": ["OK", "LOW", "CRITICAL", "ERROR"]
           },
           "error": {"description": "Only with status ERROR: the exception type.", "type": "string"},

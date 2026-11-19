@@ -1,0 +1,15 @@
+# shellcheck shell=bash disable=SC2034  # also valid shell; read by storage-status.py
+# Settings for storage-status.py: copy to storage-status.conf next to the script.
+# Environment variables with the same names override these values.
+
+# Where to write the JSON file
+STORAGE_STATUS_OUT="/var/tmp/storage_status.json"
+
+# Optional: also write Prometheus metrics, for node_exporter's textfile collector
+# (the folder passed to --collector.textfile.directory). Empty: no metrics file.
+PROMETHEUS_OUT=""
+
+# Free space thresholds (percent) for pools and cloud storage:
+# below WARN_PCT -> LOW, below CRIT_PCT -> CRITICAL
+WARN_PCT=20
+CRIT_PCT=10
