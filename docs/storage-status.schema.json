@@ -15,20 +15,20 @@
       "type": "string",
       "format": "date-time"
     },
-    "generated_epoch": {"description": "Same moment as generated_at, as a Unix timestamp. Added in 1.2.0.", "type": "integer"},
+    "generated_epoch": {"description": "Same moment as generated_at, as a Unix timestamp. Added in 2.0.0.", "type": "integer"},
     "thresholds": {
-      "description": "Free space thresholds used for space_status and cloud status (WARN_PCT and CRIT_PCT). Added in 1.2.0.",
+      "description": "Free space thresholds used for space_status and cloud status (WARN_PCT and CRIT_PCT). Added in 2.0.0.",
       "type": "object",
       "required": ["warn_pct", "crit_pct"],
       "properties": {"warn_pct": {"$ref": "#/$defs/percent"}, "crit_pct": {"$ref": "#/$defs/percent"}}
     },
     "errors": {
-      "description": "Sections that could not be collected (pools, cloud, cloud_sync, snapshots), with the error. The section is then empty or partial; the script exits with status 1. Added in 1.2.0.",
+      "description": "Sections that could not be collected (pools, cloud, cloud_sync, snapshots), with the error. The section is then empty or partial; the script exits with status 1. Added in 2.0.0.",
       "type": "object",
       "additionalProperties": {"type": "string"}
     },
     "cloud_sync": {
-      "description": "Last run of every cloud sync task, by task description (a repeated description gets the task id in brackets). Added in 1.2.0.",
+      "description": "Last run of every cloud sync task, by task description (a repeated description gets the task id in brackets). Added in 2.0.0.",
       "type": "object",
       "additionalProperties": {
         "type": "object",
@@ -58,7 +58,7 @@
           "free": {"$ref": "#/$defs/bytes"},
           "used": {"$ref": "#/$defs/bytes"},
           "free_pct": {"$ref": "#/$defs/percent"},
-          "space_status": {"description": "OK, LOW (free_pct below warn_pct) or CRITICAL (below crit_pct); null when free_pct is unknown. Added in 1.2.0.", "enum": ["OK", "LOW", "CRITICAL", null]},
+          "space_status": {"description": "OK, LOW (free_pct below warn_pct) or CRITICAL (below crit_pct); null when free_pct is unknown. Added in 2.0.0.", "enum": ["OK", "LOW", "CRITICAL", null]},
           "healthy": {"description": "TrueNAS verdict on the pool (status, errors, scan results). Added in 1.1.0.", "type": ["boolean", "null"]},
           "scan": {
             "description": "Last scrub or resilver; ZFS keeps only the most recent one. Null if the pool was never scanned. Added in 1.1.0.",

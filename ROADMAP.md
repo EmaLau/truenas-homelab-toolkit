@@ -2,7 +2,7 @@
 
 Where this project is going. Released versions are described in the [changelog](CHANGELOG.md).
 
-**Status:** 1.1.0 released on 2026-11-19 (1.0.0 the same day). Every script runs in production on one TrueNAS homelab (TrueNAS 25.10), except the system-backup example, which is a simplified copy of the one running there.
+**Status:** 2.0.0 released on 2026-11-19 (1.0.0 and 1.1.0 the same day). lan-guard, heartbeat and storage-status run in production on one TrueNAS homelab (TrueNAS 25.10). system-backup was tried there (a full backup, and a restore of its PostgreSQL databases with `--restore`), while that homelab's nightly backup is still the original script in `examples/`.
 
 ## 1.0 — first public release (done)
 

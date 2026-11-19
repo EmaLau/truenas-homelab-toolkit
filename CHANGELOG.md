@@ -2,7 +2,9 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.0.0] — 2026-11-19
+
+Every item of the roadmap after 1.0: a generic, verified backup with MariaDB support, an installer, generic checks and notifications in heartbeat, an allowlist and logging in lan-guard, pool health, cloud sync results and Prometheus output in storage-status, and the documentation in English and Italian. Existing settings files keep working: the new major version marks the new scripts, not a breaking change.
 
 ### Added
 
@@ -77,6 +79,6 @@ First public release: every script made generic, documented and tested.
 - `storage-status`: no crash when a pool reports size 0.
 - `storage-status`: `generated_at` now has a time zone (ISO 8601).
 
-[Unreleased]: https://github.com/EmaLau/truenas-homelab-toolkit/compare/v1.1.0...HEAD
+[2.0.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v2.0.0
 [1.1.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v1.1.0
 [1.0.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v1.0.0
