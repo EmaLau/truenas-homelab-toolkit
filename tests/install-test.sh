@@ -92,6 +92,14 @@ check "moved folder: jobs updated, not copied" "3 2 1" "$(grep -c '^update' "$T/
 check "moved folder: new path" 3 "$(cat "$STATE"/*.json | grep -o "$R2/" | wc -l)"
 R="$R2"
 
+# An optional settings file that exists counts as "install this script" too.
+printf 'WARN_PCT=25\n' >"$R/storage-status/storage-status.conf"
+inst --dry-run
+check "optional settings file present: storage-status planned" 1 "$(grep -c '^create cron job (truenas-homelab-toolkit: storage-status)' "$T/out")"
+rm "$R/storage-status/storage-status.conf"
+inst --dry-run
+check "optional settings file absent: storage-status not planned" 0 "$(grep -c 'storage-status' "$T/out" || true)"
+
 inst --disabled storage-status
 check "--disabled: storage-status created off" False "$(q cronjob "[x['enabled'] for x in j if x['description'].endswith('storage-status')][0]")"
 

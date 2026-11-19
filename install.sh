@@ -54,12 +54,12 @@ S_SS=$(sched storage-status '*/30 * * * *') || exit 1
 S_SB=$(sched system-backup '0 3 * * *') || exit 1
 S_SV=$(sched system-backup-verify '0 5 * * 0') || exit 1
 
-# name|settings file (empty: optional)|kind|schedule or when|command
+# name|settings file (a leading ? marks it optional)|kind|schedule or when|command
 JOBS=(
     "lan-guard|lan-guard/lan-guard.conf|init|POSTINIT|/bin/bash $ROOT/lan-guard/lan-guard.sh apply"
     "lan-guard|lan-guard/lan-guard.conf|cron|$S_LG|/bin/bash $ROOT/lan-guard/lan-guard.sh apply"
     "heartbeat|heartbeat/heartbeat.conf|cron|$S_HB|/bin/bash $ROOT/heartbeat/heartbeat.sh"
-    "storage-status||cron|$S_SS|/usr/bin/python3 $ROOT/storage-status/storage-status.py"
+    "storage-status|?storage-status/storage-status.conf|cron|$S_SS|/usr/bin/python3 $ROOT/storage-status/storage-status.py"
     "system-backup|system-backup/system-backup.conf|cron|$S_SB|/bin/bash $ROOT/system-backup/system-backup.sh"
     "system-backup-verify|system-backup/system-backup.conf|cron|$S_SV|/bin/bash $ROOT/system-backup/system-backup-verify.sh --restore"
 )
@@ -67,7 +67,7 @@ JOBS=(
 if [ "${#WANT[@]}" -eq 0 ]; then
     for J in "${JOBS[@]}"; do
         IFS='|' read -r name conf _ <<<"$J"
-        [ -n "$conf" ] && [ -f "$ROOT/$conf" ] && [[ " ${WANT[*]-} " != *" $name "* ]] && WANT+=("$name")
+        [ -f "$ROOT/${conf#\?}" ] && [[ " ${WANT[*]-} " != *" $name "* ]] && WANT+=("$name")
     done
     [ "$UNINSTALL" = yes ] && WANT=(lan-guard heartbeat storage-status system-backup system-backup-verify)
     [ "${#WANT[@]}" -gt 0 ] || { echo "install.sh: no settings file found; copy the *.conf.example you need, or name the scripts (see --help)" >&2; exit 1; }
@@ -78,7 +78,7 @@ if [ "$UNINSTALL" = no ]; then
     for J in "${JOBS[@]}"; do
         IFS='|' read -r name conf _ <<<"$J"
         [[ " ${WANT[*]} " == *" $name "* ]] || continue
-        if [ -n "$conf" ] && [ ! -f "$ROOT/$conf" ]; then
+        if [[ "$conf" != \?* ]] && [ ! -f "$ROOT/$conf" ]; then
             echo "install.sh: $name needs $conf (copy it from $conf.example)" >&2; exit 1
         fi
     done

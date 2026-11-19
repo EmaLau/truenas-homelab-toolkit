@@ -77,7 +77,7 @@ I file che contengono indirizzi che valgono come password (heartbeat, system-bac
 
 ```bash
 ./install.sh --dry-run                    # mostra cosa creerebbe, senza cambiare niente
-./install.sh                              # tutti gli script che hanno il loro file di impostazioni
+./install.sh                              # tutti gli script che hanno il loro file di impostazioni (storage-status: se esiste storage-status.conf)
 ./install.sh heartbeat storage-status     # solo questi
 ./install.sh --disabled                   # crea i job spenti, per controllarli prima nell'interfaccia
 ./install.sh --uninstall                  # toglie i job creati da install.sh
