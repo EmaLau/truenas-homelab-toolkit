@@ -20,17 +20,22 @@ All scripts run as root from TrueNAS cron jobs or init scripts (System → Advan
 
 ## lan-guard
 
-Apps published by Docker are reachable from the whole LAN, usually without a login. `lan-guard.sh` drops **new** connections that arrive on the LAN interface for a list of ports, while VPN (e.g. Tailscale), localhost, SSH and the TrueNAS UI keep working: it cannot lock you out.
+**Why.** A TrueNAS app is published on a host port, and Docker opens that port to every device on the LAN, ahead of any firewall rule you would normally write: Docker inserts its own rules and translates the address before `INPUT` ever sees the packet. Dashboards like Uptime Kuma, Scrutiny or Dozzle often have no login, or a weak one, so anything on the home network (a guest's phone, a smart TV, a compromised IoT device) can open them. Most people only reach these tools over a VPN anyway, so the LAN does not need them at all.
+
+`lan-guard.sh` drops **new** connections that arrive on the LAN interface for a list of ports, while VPN (e.g. Tailscale), localhost, SSH and the TrueNAS UI keep working: it cannot lock you out.
 
 - Docker DNATs published ports before filtering, so the rules live in `DOCKER-USER` and match the original port with conntrack; a second chain in `INPUT` covers connections that reach `docker-proxy` directly (e.g. over IPv6).
 - Rules are rebuilt in a temporary chain and swapped, so there is never a moment without them.
 
 ```bash
 cp lan-guard/lan-guard.conf.example lan-guard/lan-guard.conf   # set LAN_IF and PORTS
+lan-guard.sh dry-run  # print the rules, change nothing (no root needed)
 lan-guard.sh          # apply (idempotent)
 lan-guard.sh status   # rules and hit counters
 lan-guard.sh off      # remove everything
 ```
+
+Ports must be numbers from 1 to 65535; anything else stops the script before it touches the firewall. Run `dry-run` first: it prints, in `iptables-save` syntax, exactly the rules `apply` would create.
 
 Add it as a **post-init** script and as a cron job every 5 minutes: TrueNAS and Docker can rebuild their firewall rules.
 
@@ -43,7 +48,9 @@ Limits to know:
 
 ## heartbeat
 
-Every monitoring tool that runs on the NAS goes silent when the NAS goes down. `heartbeat.sh` runs every minute from cron and has two independent parts. Both are optional: a part without its settings is skipped.
+**Why.** A monitoring tool that runs on the NAS cannot tell you the NAS is down: when the box freezes, loses power or drops off the internet, it goes silent with everything else, and silence looks exactly like "all good". The check has to be turned around: the NAS proves it is alive every minute, and something *outside* raises the alarm when the proof stops arriving.
+
+`heartbeat.sh` runs every minute from cron and has two independent parts. Both are optional: a part without its settings is skipped.
 
 ```bash
 cp heartbeat/heartbeat.conf.example heartbeat/heartbeat.conf
@@ -58,9 +65,12 @@ The script warns on stderr if `heartbeat.conf` is readable by other users, and e
 
 ## storage-status
 
+**Why.** The numbers that tell you a NAS is heading for trouble are spread across the TrueNAS UI: pool space on one page, scrub results and disk errors on another, snapshot tasks on a third, cloud space nowhere at all. Dashboards such as Homepage can show a JSON file, but should not hold an admin API key for TrueNAS or your cloud credentials. This script gathers everything as root, once every half hour, into one file that any dashboard or bot can read without credentials.
+
 Collects, through the TrueNAS middleware (`midclt`), `zfs` and `rclone`:
 
 - status, size and free space of every pool;
+- pool health, the last scrub or resilver (state, errors, age) and every disk with its read, write and checksum error counters;
 - used and free space of the cloud credentials that report it: **OneDrive and Google Drive** only, other providers are skipped;
 - space used by snapshots in every pool;
 - for every dataset with a periodic snapshot task: number of snapshots, the newest one and its age, space used. Snapshots are matched with the task's naming schema, so manual snapshots are not counted.
@@ -72,7 +82,13 @@ The result is a single JSON file (`$STORAGE_STATUS_OUT`, default `/var/tmp/stora
  "schema_version": 1,
  "generated_at": "2026-11-19T16:31:30+01:00",
  "pools": {
-  "tank": {"status": "ONLINE", "size": 27986006900736, "free": 27234230513664, "used": 751776387072, "free_pct": 97}
+  "tank": {"status": "ONLINE", "size": 27986006900736, "free": 27234230513664, "used": 751776387072, "free_pct": 97,
+           "healthy": true,
+           "scan": {"function": "SCRUB", "state": "FINISHED", "start": 1792879202, "end": 1792879863,
+                    "errors": 0, "progress_pct": null, "age_hours": 619.67},
+           "disks": [
+            {"name": "sda", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}
+           ]}
  },
  "cloud": {
   "Microsoft OneDrive": {"id": 1, "provider": "onedrive", "status": "OK",
@@ -86,11 +102,15 @@ The result is a single JSON file (`$STORAGE_STATUS_OUT`, default `/var/tmp/stora
 }
 ```
 
+ZFS keeps only the most recent scan of a pool, so `scan` is the last scrub *or* resilver. A full example, with a degraded pool during a resilver and an offline pool, is in [`tests/storage-status.example.json`](tests/storage-status.example.json). New fields can be added without changing `schema_version`, which only goes up on incompatible changes.
+
 Cloud status is `OK`, `LOW` (under 20 % free), `CRITICAL` (under 10 %) or `ERROR` (with an `error` field).
 
 **Cloud tokens.** To read the cloud space, the script passes the TrueNAS cloud credentials to `rclone about` through a temporary config file (mode 600, deleted afterwards). rclone refreshes OAuth tokens when they expire; like TrueNAS after a cloud sync, the script saves the refreshed token back to the credential (`cloudsync.credentials.update`), so the stored one never goes stale.
 
 ## system-backup example
+
+**Why.** The copies TrueNAS keeps of its own configuration stay on the NAS, so they are lost along with it, and a ZFS snapshot of a running database folder is not guaranteed to restore. A useful nightly backup has to dump the databases properly, save the TrueNAS config with its secret seed, and check that each piece can actually be read back. This example shows one way to do all of it.
 
 `examples/system-backup.sh` is the nightly backup of the original homelab, **kept as a reference, not a drop-in script**: it names that system's apps and folders, and it stops and restarts some apps. Everything tied to that system is in one *Site-specific settings* block at the top (apps to stop, `app.config` list, PostgreSQL containers, folders to archive, required files); the per-app stop and restart logic needs adapting too. The pool that holds the backups is set with `DATA_POOL` (default `tank`), the folder with the app data with `APPS_ROOT` (default `/mnt/Apps`). What it shows:
 
@@ -112,7 +132,7 @@ docker run --rm --cap-add NET_ADMIN -v "$PWD":/src:ro alpine:3.20 \
 
 ## Roadmap
 
-What is missing before the first public release, and the features planned after it, are in [ROADMAP.md](ROADMAP.md).
+Planned features are in [ROADMAP.md](ROADMAP.md).
 
 ## License
 

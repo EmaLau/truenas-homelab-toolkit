@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `lan-guard dry-run`: prints the rules `apply` would create, in `iptables-save` syntax, without changing anything and without root.
+- `lan-guard`: ports are checked (numbers from 1 to 65535) before the firewall is touched.
+- `storage-status`: for every pool, `healthy`, the last scrub or resilver (`scan`: state, errors, progress, age) and every disk with its status and read, write and checksum errors. New fields only: `schema_version` stays 1.
+- README: a "Why" section for every script.
+
 ## [1.0.0] — 2026-11-19
 
 First public release: every script made generic, documented and tested.
@@ -31,4 +40,5 @@ First public release: every script made generic, documented and tested.
 - `storage-status`: no crash when a pool reports size 0.
 - `storage-status`: `generated_at` now has a time zone (ISO 8601).
 
+[Unreleased]: https://github.com/EmaLau/truenas-homelab-toolkit/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v1.0.0

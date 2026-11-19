@@ -122,6 +122,58 @@ def schema_regex(naming_schema):
     )
 
 
+def epoch(value):
+    """midclt dates look like {"$date": <milliseconds>}."""
+    if isinstance(value, dict) and isinstance(value.get("$date"), (int, float)):
+        return int(value["$date"] // 1000)
+    return None
+
+
+def scan_status(scan, now):
+    """Last scrub or resilver of a pool (ZFS keeps only the most recent one)."""
+    if not scan or not scan.get("function"):
+        return None
+    end = epoch(scan.get("end_time"))
+    pct_done = scan.get("percentage")
+    # Only meaningful while running (ZFS can report a bit over 100 %).
+    progress = min(round(pct_done, 1), 100) if scan.get("state") == "SCANNING" and pct_done is not None else None
+    return {
+        "function": scan["function"],
+        "state": scan.get("state"),
+        "start": epoch(scan.get("start_time")),
+        "end": end,
+        "errors": scan.get("errors"),
+        "progress_pct": progress,
+        "age_hours": round((now - end) / 3600, 2) if end else None,
+    }
+
+
+def pool_disks(topology):
+    """Every disk of a pool, from all vdev groups (data, cache, log, spare, special, dedup)."""
+    disks = []
+
+    def walk(vdev, role):
+        if vdev.get("type") == "DISK":
+            stats = vdev.get("stats") or {}
+            disks.append(
+                {
+                    "name": vdev.get("disk") or vdev.get("name"),
+                    "role": role,
+                    "status": vdev.get("status"),
+                    "read_errors": stats.get("read_errors"),
+                    "write_errors": stats.get("write_errors"),
+                    "checksum_errors": stats.get("checksum_errors"),
+                }
+            )
+        for child in vdev.get("children") or []:
+            walk(child, role)
+
+    for role, vdevs in (topology or {}).items():
+        for vdev in vdevs or []:
+            walk(vdev, role)
+    return disks
+
+
 def zfs(*args):
     return subprocess.check_output(["zfs", "list", "-H", "-p", *args], text=True, timeout=120).splitlines()
 
@@ -145,6 +197,9 @@ def main():
             "free": free,
             "used": size - free if size is not None and free is not None else None,
             "free_pct": pct(free, size),
+            "healthy": p.get("healthy"),
+            "scan": scan_status(p.get("scan"), now),
+            "disks": pool_disks(p.get("topology")),
         }
 
     for c in midclt("cloudsync.credentials.query"):
