@@ -14,7 +14,7 @@ A collection of small, independent scripts for running a TrueNAS SCALE / Communi
 | [`lan-guard`](#lan-guard) | Blocks admin-only app ports from the home LAN, in IPv4 and IPv6, without touching SSH, the web UI or VPN access | init script + cron every 5 min |
 | [`heartbeat`](#heartbeat) | Pings an external monitor every minute, so you get an alert when the NAS itself goes down; runs your own checks and notifies ntfy or a webhook when they change | cron every minute |
 | [`storage-status`](#storage-status) | Writes pool health and usage, cloud storage usage, cloud sync results and snapshot age/size to one JSON file for dashboards, and optionally Prometheus metrics | cron every 30 min |
-| [`examples/system-backup.sh`](#system-backup-example) | A nightly backup of the TrueNAS configuration, app databases and app folders, with checksums and retention | cron nightly |
+| [`system-backup`](#system-backup) | A nightly backup of the TrueNAS configuration, app settings, PostgreSQL and MariaDB databases and app folders, with checksums, retention and a verify script that restores the databases | cron nightly |
 
 All scripts run as root from TrueNAS cron jobs or init scripts (System → Advanced). Keep them on a data pool, not on the boot pool.
 
@@ -149,20 +149,41 @@ Cloud status is `OK`, `LOW` (under `WARN_PCT` free), `CRITICAL` (under `CRIT_PCT
 
 **Cloud tokens.** To read the cloud space, the script passes the TrueNAS cloud credentials to `rclone about` through a temporary config file (mode 600, deleted afterwards). rclone refreshes OAuth tokens when they expire; like TrueNAS after a cloud sync, the script saves the refreshed token back to the credential (`cloudsync.credentials.update`), so the stored one never goes stale.
 
-## system-backup example
+## system-backup
 
-**Why.** The copies TrueNAS keeps of its own configuration stay on the NAS, so they are lost along with it, and a ZFS snapshot of a running database folder is not guaranteed to restore. A useful nightly backup has to dump the databases properly, save the TrueNAS config with its secret seed, and check that each piece can actually be read back. This example shows one way to do all of it.
+**Why.** The copies TrueNAS keeps of its own configuration stay on the NAS, so they are lost along with it, and a ZFS snapshot of a running database folder is not guaranteed to restore. A useful nightly backup has to dump the databases properly, save the TrueNAS config with its secret seed, and check that each piece can actually be read back. These two scripts do that, driven by one settings file.
 
-`examples/system-backup.sh` is the nightly backup of the original homelab, **kept as a reference, not a drop-in script**: it names that system's apps and folders, and it stops and restarts some apps. Everything tied to that system is in one *Site-specific settings* block at the top (apps to stop, `app.config` list, PostgreSQL containers, folders to archive, required files); the per-app stop and restart logic needs adapting too. The pool that holds the backups is set with `DATA_POOL` (default `tank`), the folder with the app data with `APPS_ROOT` (default `/mnt/Apps`). What it shows:
+```bash
+cp system-backup/system-backup.conf.example system-backup/system-backup.conf
+chmod 600 system-backup/system-backup.conf   # then set BACKUP_DIR and the parts you want
+system-backup/system-backup.sh                       # nightly, from cron
+system-backup/system-backup-verify.sh --restore      # e.g. weekly
+```
 
-- `config.save` of TrueNAS, verified (it must contain the database and the secret seed);
-- hot `pg_dump -Fc` of PostgreSQL databases running in app containers, verified with `pg_restore --list`;
-- `app.config` of every app;
-- archives of app folders, taken while apps run, and stopping only the apps that need it, after checking that they are idle;
-- SHA-256 checksums of everything, a manifest, and retention (30 daily, 12 monthly, `.keep` folders forever);
-- work in an `.incomplete-*` folder, renamed only at the end.
+`system-backup.sh` writes each backup to `BACKUP_DIR/YYYY-MM-DD_HH-MM-SS`, with only the parts you configure:
+
+- **TrueNAS configuration** (`config.save`) with the secret seed, checked to contain both the database and the seed: without the seed, a restored configuration loses every stored password;
+- **app settings**: `app.query` and the `app.config` of the chosen apps, or of every app with `APP_CONFIGS=("*")`;
+- **PostgreSQL** databases running in app containers: `pg_dump -Fc` in one transaction, checked with `pg_restore --list`, plus the roles;
+- **MariaDB/MySQL** databases: `mariadb-dump` or `mysqldump` with `--single-transaction`, gzipped, checked for the end-of-dump marker. The password is read inside the container from its own environment, never from the host's command line;
+- **folder archives**, one `tar.gz` per entry, each with its own list of apps to stop. Apps are stopped only while their own archive is made, only if they were running, and are started again even when the backup fails. Archives without apps are read live; paths can be optional (`?/path`), excluded (tar patterns) or required.
+
+Work happens in an `.incomplete-*` folder renamed only at the end, so a half-made backup never looks complete. Every backup gets a `manifest.json` and `SHA256SUMS`; `BACKUP_DIR/latest` points to the newest one, and `status/last_run.json` and `status/last_success.json` describe the last run for dashboards. Retention keeps every backup of the last `KEEP_DAILY` days, then the first backup of each of the last `KEEP_MONTHLY` months; a folder containing `.keep` is never removed. Only one backup runs at a time.
+
+For alerts, `HEALTHCHECKS_URL` gets a ping at the start, on success and on failure (so a backup that never ran is noticed too), and `NOTIFY_URL` gets an ntfy or JSON message on failure, or always with `NOTIFY_ON="always"`, as in heartbeat. Without the TrueNAS parts (`TRUENAS_CONFIG="no"`, no app settings, no apps to stop) the script also runs on any Linux machine with Docker.
+
+**Verifying.** A backup that was never restored is a hope. `system-backup-verify.sh [--restore] [FOLDER]` (default: the latest backup) checks the checksums and the manifest, opens the TrueNAS configuration database and runs SQLite's integrity check, reads every archive to the end and checks the format of every dump. With `--restore`, each database is restored into a throwaway container without network (`PG_IMAGE`, `MYSQL_IMAGE`: at least the version of your databases) and its tables are counted. Nothing else is changed; the result goes to `status/last_verify.json`, and failures are notified.
+
+`examples/system-backup.sh` is the original script these came from, kept as a reference: it is tied to one homelab and includes app-specific logic (waiting for one app to be idle before stopping it, Telegram notifications).
 
 ## Tests
+
+`tests/system-backup-test.sh` runs system-backup and system-backup-verify with fake `midclt` and `curl` (configuration, app settings, stopping and restarting apps, failures, retention, the lock); `tests/system-backup-restore-test.sh` backs up real PostgreSQL 16 and MariaDB 11 containers and restores the dumps with `--restore` (needs Docker):
+
+```bash
+bash tests/system-backup-test.sh
+bash tests/system-backup-restore-test.sh
+```
 
 `tests/heartbeat-test.sh` runs heartbeat with fake `curl` and `docker` commands (nothing is sent anywhere) and checks the pushes, the checks, the notifications and the lock. It needs bash 5, GNU `timeout`, `flock` and python3, as on TrueNAS:
 

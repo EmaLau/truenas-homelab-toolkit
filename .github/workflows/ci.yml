@@ -38,6 +38,9 @@ jobs:
       - name: heartbeat tests (fake curl and docker)
         run: bash tests/heartbeat-test.sh
 
+      - name: system-backup tests (fake midclt and curl)
+        run: bash tests/system-backup-test.sh
+
       - name: storage-status tests (fake midclt, zfs and rclone)
         run: |
           python tests/storage-status-test.py "$RUNNER_TEMP/ss"
@@ -56,3 +59,11 @@ jobs:
         run: |
           docker run --rm --cap-add NET_ADMIN -v "$PWD":/src:ro alpine:3.20 \
             sh -c 'apk add -q iptables ip6tables bash && bash /src/tests/lan-guard-test.sh'
+
+  system-backup-restore:
+    name: system-backup with real databases
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Back up PostgreSQL 16 and MariaDB 11, restore them with --restore
+        run: bash tests/system-backup-restore-test.sh
