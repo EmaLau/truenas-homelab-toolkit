@@ -182,7 +182,7 @@ for E in ${ARCHIVES[@]+"${ARCHIVES[@]}"}; do
             fi
             log "Stopping $APP"
             STOPPED+=("$APP")
-            midclt call -j app.stop "$APP" >/dev/null
+            midclt call -j app.stop "$APP" >/dev/null 2>&1   # -j prints a progress bar; a failure still stops the backup
         fi
     done
     OUT="$WORK/archives/$NAME.tar.gz"
