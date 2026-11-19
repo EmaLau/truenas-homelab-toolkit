@@ -77,7 +77,7 @@ Files that contain URLs working as passwords (heartbeat, system-backup, `toolkit
 
 ```bash
 ./install.sh --dry-run                    # show what would be created, change nothing
-./install.sh                              # every script that has its settings file
+./install.sh                              # every script that has its settings file (storage-status: if storage-status.conf exists)
 ./install.sh heartbeat storage-status     # only these
 ./install.sh --disabled                   # create the jobs switched off, to review them in the UI
 ./install.sh --uninstall                  # remove the jobs created by install.sh

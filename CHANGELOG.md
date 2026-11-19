@@ -13,6 +13,11 @@ What was needed to move a real homelab's nightly backup to `system-backup`.
 - `install.sh`: job schedules can be changed in `toolkit.conf` (`SCHEDULE_HEARTBEAT`, `SCHEDULE_SYSTEM_BACKUP`, …).
 - `system-backup`: the status files also have `version`, the field name used by the original backup script, next to `truenas_version`.
 
+### Fixed
+
+- `install.sh` without arguments now also installs storage-status when its (optional) `storage-status.conf` exists; before, storage-status was installed only when named.
+- `system-backup`: the progress bar of `midclt call -j app.stop` no longer ends up in the log.
+
 ## [2.0.0] — 2026-11-19
 
 Every item of the roadmap after 1.0: a generic, verified backup with MariaDB support, an installer, generic checks and notifications in heartbeat, an allowlist and logging in lan-guard, pool health, cloud sync results and Prometheus output in storage-status, and the documentation in English and Italian. Existing settings files keep working: the new major version marks the new scripts, not a breaking change.
