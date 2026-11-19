@@ -1,0 +1,63 @@
+# shellcheck shell=bash disable=SC2034  # sourced by system-backup.sh and system-backup-verify.sh
+# Copy to system-backup.conf and run: chmod 600 system-backup.conf
+# Every part below is optional except BACKUP_DIR.
+
+# Folder that holds the backups (on a data pool, not the boot pool). Each run
+# creates BACKUP_DIR/YYYY-MM-DD_HH-MM-SS; the backups contain secrets.
+BACKUP_DIR="/mnt/tank/SystemBackups"
+# Stop before starting if less than this is free (GiB)
+MIN_FREE_GB=5
+
+# Retention: every backup of the last KEEP_DAILY days, then the first backup of
+# each of the last KEEP_MONTHLY months. Folders containing a .keep file are never removed.
+KEEP_DAILY=30
+KEEP_MONTHLY=12
+
+# TrueNAS configuration (config.save) with the secret seed, which encrypts the
+# stored passwords: without it a restored configuration loses them.
+TRUENAS_CONFIG="yes"
+
+# app.config of these apps (TrueNAS app names), or ("*") for every app
+APP_CONFIGS=("*")
+
+# Databases dumped hot, one "CONTAINER USER DATABASE" per entry (docker ps for the names).
+# PostgreSQL: pg_dump -Fc, checked with pg_restore --list, plus the roles (globals).
+#PG_DUMPS=("ix-nextcloud-postgres-1 nextcloud nextcloud")
+PG_DUMPS=()
+# MariaDB/MySQL: mariadb-dump or mysqldump, gzipped, checked for its end marker.
+# The password is read inside the container from its own environment:
+# MARIADB_ROOT_PASSWORD/MYSQL_ROOT_PASSWORD for root, MARIADB_PASSWORD/MYSQL_PASSWORD otherwise.
+#MYSQL_DUMPS=("ix-wordpress-mariadb-1 wordpress wordpress")
+MYSQL_DUMPS=()
+
+# Folder archives, one tar.gz each: "NAME|APPS_TO_STOP|PATHS|EXCLUDES|REQUIRED"
+#   APPS_TO_STOP  TrueNAS apps stopped while this archive is made, then started
+#                 again (only if they were running); empty = archive live
+#   PATHS         absolute paths; a leading ? makes a path optional
+#   EXCLUDES      tar patterns, matched against paths without the leading /
+#   REQUIRED      paths that must end up in the archive, or the backup fails
+# Lists are separated by commas (so paths cannot contain commas). Example: an
+# app whose SQLite database needs it stopped, and app folders that can be read live.
+#ARCHIVES=(
+#  "monitoring|uptime-kuma|/mnt/Apps/UptimeKuma||/mnt/Apps/UptimeKuma/data/kuma.db"
+#  "live||/mnt/Apps/Nextcloud/html/config,?/mnt/Apps/Extra|*/cache|/mnt/Apps/Nextcloud/html/config/config.php"
+#)
+ARCHIVES=()
+# Seconds to wait for a stopped app to be RUNNING again
+APP_START_TIMEOUT=300
+
+# Healthchecks-style monitoring: pings URL/start, URL on success, URL/fail on
+# failure, so a backup that never ran also raises an alert.
+HEALTHCHECKS_URL=""
+
+# Notifications (ntfy or JSON webhook, as in heartbeat): sent on failure, and
+# on success when NOTIFY_ON="always" or when there were warnings.
+NOTIFY_URL=""
+NOTIFY_FORMAT="ntfy"
+NOTIFY_TOKEN=""
+NOTIFY_ON="failure"
+
+# Images used by system-backup-verify.sh --restore. Must be at least the
+# version of your databases (pg_restore reads older dumps, not newer ones).
+PG_IMAGE="postgres:18-alpine"
+MYSQL_IMAGE="mariadb:11"

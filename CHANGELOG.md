@@ -17,6 +17,9 @@ All notable changes to this project are documented here. The format follows [Kee
 - `storage-status`: `generated_epoch`, `thresholds` and `errors` at the top of the JSON. New fields only: `schema_version` stays 1.
 - `tests/storage-status-test.py`: storage-status tested in CI against fake `midclt`, `zfs` and `rclone`.
 
+- `system-backup/system-backup.sh`: a generic nightly backup driven by `system-backup.conf`: TrueNAS configuration with the secret seed, `app.config` (or every app), PostgreSQL and **MariaDB/MySQL** dumps checked right away, folder archives each with its own apps to stop, checksums, manifest, retention (daily, then monthly, `.keep`), Healthchecks pings and ntfy/webhook notifications. Runs without TrueNAS when the TrueNAS parts are off.
+- `system-backup/system-backup-verify.sh`: checks a backup (checksums, configuration database integrity and secret seed, archives read to the end, dump formats); with `--restore`, restores every database into a throwaway container and counts its tables.
+- `tests/system-backup-test.sh` (fake `midclt` and `curl`) and `tests/system-backup-restore-test.sh` (real PostgreSQL 16 and MariaDB 11, restored into PostgreSQL 18 and MariaDB 11), both in CI.
 - `heartbeat`: generic checks (`CHECKS`): any command, exit code 0 = up, with a time limit (`CHECK_TIMEOUT`) and its own Uptime Kuma push monitor, including the time it took.
 - `heartbeat`: notifications to ntfy or to a JSON webhook (`NOTIFY_URL`, `NOTIFY_FORMAT`, `NOTIFY_TOKEN`) when a check goes down or comes back up.
 - `heartbeat`: only one run at a time (`flock`): a run still in progress makes the next one skip.

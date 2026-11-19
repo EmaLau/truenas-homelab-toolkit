@@ -21,7 +21,7 @@ In order of priority.
    - ~~Optional Prometheus *textfile* output next to the JSON file.~~ Done (`PROMETHEUS_OUT`), with cloud sync results, configurable thresholds and per-section error handling.
 3. **heartbeat**
    - ~~Generic checks: any command whose exit code becomes an up/down push, so one script can watch several services.~~ Done (`CHECKS`), with notifications to ntfy or a webhook.
-4. **system-backup, generic version**: a new script driven by a config file (pools, apps to archive, PostgreSQL containers to dump, retention), keeping the verified-backup ideas of the example: verified `config.save`, `pg_dump` checked with `pg_restore --list`, checksums, manifest, `.incomplete-*` folders.
+4. ~~**system-backup, generic version**~~ Done: `system-backup/`, with MariaDB/MySQL and a verify script that restores the databases. The original idea: a new script driven by a config file (pools, apps to archive, PostgreSQL containers to dump, retention), keeping the verified-backup ideas of the example: verified `config.save`, `pg_dump` checked with `pg_restore --list`, checksums, manifest, `.incomplete-*` folders.
 5. **Installer helpers**: create the post-init script and cron jobs through the TrueNAS middleware instead of by hand.
 
 ## Maybe later
