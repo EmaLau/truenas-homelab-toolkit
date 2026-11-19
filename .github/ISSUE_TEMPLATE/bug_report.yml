@@ -1,0 +1,42 @@
+name: Bug report
+description: A script fails, or does something different from the documentation
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! English or Italian are both fine. **Remove every URL, token and password** from what you paste.
+        Security problems go to the [private reporting](https://github.com/EmaLau/truenas-homelab-toolkit/security/advisories/new), not here.
+  - type: dropdown
+    id: script
+    attributes:
+      label: Script
+      options:
+        - lan-guard
+        - heartbeat
+        - storage-status
+        - system-backup / system-backup-verify
+        - install.sh
+        - Documentation
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Toolkit version and TrueNAS version
+      description: 'e.g. "1.2.0 on TrueNAS 25.10.8" (`cat /etc/version`)'
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: What you ran, the output, and what you expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings and logs
+      description: The relevant part of the settings file and of the output or log, without secrets
+      render: text

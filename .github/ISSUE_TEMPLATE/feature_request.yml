@@ -1,0 +1,28 @@
+name: Feature request
+description: A new feature or an improvement
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: script
+    attributes:
+      label: Script
+      options:
+        - lan-guard
+        - heartbeat
+        - storage-status
+        - system-backup
+        - install.sh
+        - Something new
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: 'e.g. "storage-status: report SMART test results"'
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Which problem does it solve on your NAS?

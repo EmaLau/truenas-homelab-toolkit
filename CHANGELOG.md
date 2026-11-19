@@ -17,6 +17,9 @@ All notable changes to this project are documented here. The format follows [Kee
 - `storage-status`: `generated_epoch`, `thresholds` and `errors` at the top of the JSON. New fields only: `schema_version` stays 1.
 - `tests/storage-status-test.py`: storage-status tested in CI against fake `midclt`, `zfs` and `rclone`.
 
+- Documentation: a complete guide in English and Italian (`docs/documentation.md`, `docs/documentazione.md`) with every setting, restoring a backup, common problems and security; HTML pages built with pandoc (`docs/web/build.sh`); the README in Italian (`README.it.md`) and a shorter README.
+- `CONTRIBUTING.md`, `SECURITY.md`, issue forms and a pull request template.
+- `tests/docs-links-test.py`: checks every relative link and heading anchor of the documentation, in CI.
 - `install.sh`: creates or updates the cron jobs and init scripts through the TrueNAS middleware (`--dry-run`, `--disabled`, `--uninstall`); recognises its own jobs, so it can be run again, and reports jobs made by hand that run the same scripts.
 - `toolkit.conf`: optional settings shared by heartbeat and system-backup (notifications, Uptime Kuma address); an empty value in a script's own file falls back to it.
 - Every script warns, when run by hand, on a TrueNAS version it has not been tested on (tested: 25.10).

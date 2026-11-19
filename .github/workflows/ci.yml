@@ -33,7 +33,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - run: python -m py_compile storage-status/storage-status.py tests/storage-status-test.py
+      - run: python -m py_compile storage-status/storage-status.py tests/storage-status-test.py tests/docs-links-test.py
 
       - name: heartbeat tests (fake curl and docker)
         run: bash tests/heartbeat-test.sh
@@ -43,6 +43,15 @@ jobs:
 
       - name: install.sh tests (fake middleware)
         run: bash tests/install-test.sh
+
+      - name: Documentation links
+        run: python tests/docs-links-test.py
+
+      - name: Documentation pages (pandoc)
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends pandoc
+          sh docs/web/build.sh "$RUNNER_TEMP/docs"
+          grep -q '<h1 class="title">TrueNAS homelab toolkit</h1>' "$RUNNER_TEMP/docs/docs-en.html" "$RUNNER_TEMP/docs/docs-it.html"
 
       - name: storage-status tests (fake midclt, zfs and rclone)
         run: |
