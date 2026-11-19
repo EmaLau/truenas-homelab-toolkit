@@ -1,5 +1,7 @@
 .DS_Store
 __pycache__/
-lan-guard/lan-guard.conf
-heartbeat/heartbeat.conf
+# Settings files hold secrets: only the *.conf.example are in the repository
+*.conf
 heartbeat/PAUSE
+heartbeat/state/
+heartbeat/.heartbeat.lock
