@@ -13,11 +13,11 @@ Each script made generic, documented and safe to try on someone else's NAS: Engl
 In order of priority.
 
 1. **lan-guard**
-   - `dry-run` mode that prints the rules without applying them.
+   - ~~`dry-run` mode that prints the rules without applying them.~~ Done, see the [changelog](CHANGELOG.md).
    - Per-port allowlist of LAN addresses (e.g. let one desktop reach an admin port).
    - Optional logging of dropped connections, rate-limited.
 2. **storage-status**
-   - Age of the last ZFS scrub and its result for every pool.
+   - ~~Age of the last ZFS scrub and its result for every pool.~~ Done, with pool health and per-disk errors.
    - Optional Prometheus *textfile* output next to the JSON file.
 3. **heartbeat**
    - Generic checks: any command whose exit code becomes an up/down push, so one script can watch several services.

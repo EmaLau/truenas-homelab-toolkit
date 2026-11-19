@@ -7,7 +7,7 @@
   "required": ["schema_version", "generated_at", "pools", "cloud", "snapshot_space", "snapshots"],
   "properties": {
     "schema_version": {
-      "description": "Incremented on incompatible changes.",
+      "description": "Incremented on incompatible changes. New fields can appear without a new version.",
       "const": 1
     },
     "generated_at": {
@@ -26,7 +26,38 @@
           "size": {"$ref": "#/$defs/bytes"},
           "free": {"$ref": "#/$defs/bytes"},
           "used": {"$ref": "#/$defs/bytes"},
-          "free_pct": {"$ref": "#/$defs/percent"}
+          "free_pct": {"$ref": "#/$defs/percent"},
+          "healthy": {"description": "TrueNAS verdict on the pool (status, errors, scan results). Added in 1.1.0.", "type": ["boolean", "null"]},
+          "scan": {
+            "description": "Last scrub or resilver; ZFS keeps only the most recent one. Null if the pool was never scanned. Added in 1.1.0.",
+            "type": ["object", "null"],
+            "required": ["function", "state", "start", "end", "errors", "progress_pct", "age_hours"],
+            "properties": {
+              "function": {"description": "SCRUB or RESILVER.", "type": "string"},
+              "state": {"description": "SCANNING, FINISHED or CANCELED.", "type": ["string", "null"]},
+              "start": {"description": "Start time.", "type": ["integer", "null"]},
+              "end": {"description": "End time, null while running.", "type": ["integer", "null"]},
+              "errors": {"description": "Errors found by the scan.", "type": ["integer", "null"], "minimum": 0},
+              "progress_pct": {"description": "Progress while SCANNING, otherwise null.", "type": ["number", "null"], "minimum": 0, "maximum": 100},
+              "age_hours": {"description": "Hours since the scan ended, null while running.", "type": ["number", "null"]}
+            }
+          },
+          "disks": {
+            "description": "Every disk of the pool. Added in 1.1.0.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "role", "status", "read_errors", "write_errors", "checksum_errors"],
+              "properties": {
+                "name": {"description": "Device name (e.g. sda), or the vdev name if the disk is missing.", "type": ["string", "null"]},
+                "role": {"description": "vdev group: data, cache, log, spare, special or dedup.", "type": "string"},
+                "status": {"description": "e.g. ONLINE, DEGRADED, FAULTED, UNAVAIL, REMOVED.", "type": ["string", "null"]},
+                "read_errors": {"$ref": "#/$defs/count"},
+                "write_errors": {"$ref": "#/$defs/count"},
+                "checksum_errors": {"$ref": "#/$defs/count"}
+              }
+            }
+          }
         }
       }
     },
@@ -76,6 +107,7 @@
   },
   "$defs": {
     "bytes": {"type": ["integer", "null"], "minimum": 0},
-    "percent": {"type": ["integer", "null"], "minimum": 0, "maximum": 100}
+    "percent": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
+    "count": {"type": ["integer", "null"], "minimum": 0}
   }
 }

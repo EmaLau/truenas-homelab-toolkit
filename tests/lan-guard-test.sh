@@ -23,7 +23,24 @@ state() {   # rules per chain and jumps, for one table
 }
 
 conf eth0 "30001 30002"
+DRY="$(bash "$LG" dry-run 2>/dev/null)"; check "dry-run: exit code" 0 $?
+check "dry-run: one rule per port and chain" 4 "$(grep -c -- '^-A LAN-GUARD' <<<"$DRY")"
+for T in iptables ip6tables; do check "dry-run: $T untouched" "0 0 0 0" "$(state $T)"; done
+
+conf eth0 "30001 70000"
+check "invalid port: exit code 1" 1 "$(bash "$LG" >/dev/null 2>&1; echo $?)"
+check "invalid port: nothing applied" "0 0 0 0" "$(state iptables)"
+conf eth0 "30001 ssh"
+check "non-numeric port: exit code 1" 1 "$(bash "$LG" dry-run >/dev/null 2>&1; echo $?)"
+
+conf eth0 "30001 30002"
 bash "$LG" 2>/dev/null; check "apply: exit code" 0 $?
+# dry-run prints exactly the rules apply created (iptables -S spells the
+# options differently, so compare the ports of each chain)
+ports() { grep -- "^-A $2 " <<<"$1" | grep -oE -- '(ctorigdstport|dport) [0-9]+' | awk '{print $2}' | sort | tr '\n' ' '; }
+for C in LAN-GUARD LAN-GUARD-IN; do
+    check "dry-run matches apply: $C" "$(ports "$DRY" "$C")" "$(ports "$(iptables -w -S)" "$C")"
+done
 for T in iptables ip6tables; do check "apply: $T rules and jumps" "2 2 1 1" "$(state $T)"; done
 check "apply: TCP only" 0 "$(iptables -w -S | grep -- '-A LAN-GUARD' | grep -vEc -- '-p tcp|--ctproto 6' || true)"
 

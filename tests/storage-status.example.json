@@ -2,8 +2,25 @@
  "schema_version": 1,
  "generated_at": "2026-11-19T16:31:30+01:00",
  "pools": {
-  "tank": {"status": "ONLINE", "size": 27986006900736, "free": 27234230513664, "used": 751776387072, "free_pct": 97},
-  "offline": {"status": "OFFLINE", "size": null, "free": null, "used": null, "free_pct": null}
+  "tank": {"status": "ONLINE", "size": 27986006900736, "free": 27234230513664, "used": 751776387072, "free_pct": 97,
+           "healthy": true,
+           "scan": {"function": "SCRUB", "state": "FINISHED", "start": 1792879202, "end": 1792879863,
+                    "errors": 0, "progress_pct": null, "age_hours": 619.67},
+           "disks": [
+            {"name": "sda", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0},
+            {"name": "sdb", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}
+           ]},
+  "fast": {"status": "DEGRADED", "size": 236223201280, "free": 202192793600, "used": 34030407680, "free_pct": 86,
+           "healthy": false,
+           "scan": {"function": "RESILVER", "state": "SCANNING", "start": 1795060000, "end": null,
+                    "errors": 0, "progress_pct": 42.5, "age_hours": null},
+           "disks": [
+            {"name": "sdc", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0},
+            {"name": "1234567890123456789", "role": "data", "status": "UNAVAIL", "read_errors": 0, "write_errors": 0, "checksum_errors": 0},
+            {"name": "sdd", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}
+           ]},
+  "offline": {"status": "OFFLINE", "size": null, "free": null, "used": null, "free_pct": null,
+              "healthy": false, "scan": null, "disks": []}
  },
  "cloud": {
   "Microsoft OneDrive": {"id": 1, "provider": "onedrive", "status": "OK",
