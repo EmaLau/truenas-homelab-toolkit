@@ -2,13 +2,21 @@
 # Optional settings shared by several scripts: copy to toolkit.conf (in the
 # toolkit folder, next to install.sh) and run: chmod 600 toolkit.conf
 # heartbeat and system-backup read this file first, then their own settings
-# file, which wins for any value set in both. lan-guard and storage-status do
-# not use it. Another location: set TOOLKIT_CONF=/path/to/file.
+# file, which wins for any value set in both; install.sh reads the schedules.
+# lan-guard and storage-status do not use it. Another location: set TOOLKIT_CONF=/path/to/file.
 
-# Notifications (ntfy topic URL or JSON webhook), used by heartbeat and system-backup
+# Notifications (ntfy topic URL, JSON webhook or Telegram bot), used by heartbeat and system-backup
 NOTIFY_URL=""
 NOTIFY_FORMAT="ntfy"
 NOTIFY_TOKEN=""
+NOTIFY_CHAT_ID=""
 
 # Base address of Uptime Kuma, used by heartbeat
 KUMA_URL=""
+
+# Schedules of the jobs created by install.sh (5 cron fields); empty: the default
+SCHEDULE_LAN_GUARD=""             # */5 * * * *
+SCHEDULE_HEARTBEAT=""             # * * * * *
+SCHEDULE_STORAGE_STATUS=""        # */30 * * * *
+SCHEDULE_SYSTEM_BACKUP=""         # 0 3 * * *
+SCHEDULE_SYSTEM_BACKUP_VERIFY=""  # 0 5 * * 0

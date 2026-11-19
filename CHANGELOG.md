@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] — 2026-11-19
+
+What was needed to move a real homelab's nightly backup to `system-backup`.
+
+### Added
+
+- `system-backup`: `APP_IDLE_CHECKS` waits for a busy app (a command that exits 0 when the app can be stopped, tried every minute up to a maximum) before stopping it; an app still busy is not stopped and its archive is made live, with a warning.
+- `heartbeat` and `system-backup`: Telegram notifications (`NOTIFY_FORMAT=telegram`, `NOTIFY_CHAT_ID`).
+- `install.sh`: job schedules can be changed in `toolkit.conf` (`SCHEDULE_HEARTBEAT`, `SCHEDULE_SYSTEM_BACKUP`, …).
+- `system-backup`: the status files also have `version`, the field name used by the original backup script, next to `truenas_version`.
+
 ## [2.0.0] — 2026-11-19
 
 Every item of the roadmap after 1.0: a generic, verified backup with MariaDB support, an installer, generic checks and notifications in heartbeat, an allowlist and logging in lan-guard, pool health, cloud sync results and Prometheus output in storage-status, and the documentation in English and Italian. Existing settings files keep working: the new major version marks the new scripts, not a breaking change.
@@ -79,6 +90,7 @@ First public release: every script made generic, documented and tested.
 - `storage-status`: no crash when a pool reports size 0.
 - `storage-status`: `generated_at` now has a time zone (ISO 8601).
 
+[2.1.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v2.1.0
 [2.0.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v2.0.0
 [1.1.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v1.1.0
 [1.0.0]: https://github.com/EmaLau/truenas-homelab-toolkit/releases/tag/v1.0.0

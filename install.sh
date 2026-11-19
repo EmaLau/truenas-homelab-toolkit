@@ -36,14 +36,32 @@ if [ -r "$VERSION_FILE" ]; then
 fi
 [[ "$ROOT" == /mnt/* ]] || echo "install.sh: WARNING: $ROOT is not under /mnt: keep the toolkit on a data pool, the boot pool is replaced on updates" >&2
 
+# Schedules can be changed in toolkit.conf: SCHEDULE_LAN_GUARD, SCHEDULE_HEARTBEAT,
+# SCHEDULE_STORAGE_STATUS, SCHEDULE_SYSTEM_BACKUP, SCHEDULE_SYSTEM_BACKUP_VERIFY.
+TK="${TOOLKIT_CONF:-$ROOT/toolkit.conf}"
+# shellcheck source=/dev/null
+[ -f "$TK" ] && . "$TK"
+sched() {   # sched <script name> <default>: the schedule from toolkit.conf, or the default
+    local v="SCHEDULE_${1//-/_}"; v="${v^^}"
+    local s="${!v:-$2}"
+    [[ "$s" =~ ^[^[:space:]]+( [^[:space:]]+){4}$ ]] || { echo "install.sh: $v must have 5 cron fields (now: '$s')" >&2; exit 1; }
+    echo "$s"
+}
+
+S_LG=$(sched lan-guard '*/5 * * * *') || exit 1
+S_HB=$(sched heartbeat '* * * * *') || exit 1
+S_SS=$(sched storage-status '*/30 * * * *') || exit 1
+S_SB=$(sched system-backup '0 3 * * *') || exit 1
+S_SV=$(sched system-backup-verify '0 5 * * 0') || exit 1
+
 # name|settings file (empty: optional)|kind|schedule or when|command
 JOBS=(
     "lan-guard|lan-guard/lan-guard.conf|init|POSTINIT|/bin/bash $ROOT/lan-guard/lan-guard.sh apply"
-    "lan-guard|lan-guard/lan-guard.conf|cron|*/5 * * * *|/bin/bash $ROOT/lan-guard/lan-guard.sh apply"
-    "heartbeat|heartbeat/heartbeat.conf|cron|* * * * *|/bin/bash $ROOT/heartbeat/heartbeat.sh"
-    "storage-status||cron|*/30 * * * *|/usr/bin/python3 $ROOT/storage-status/storage-status.py"
-    "system-backup|system-backup/system-backup.conf|cron|0 3 * * *|/bin/bash $ROOT/system-backup/system-backup.sh"
-    "system-backup-verify|system-backup/system-backup.conf|cron|0 5 * * 0|/bin/bash $ROOT/system-backup/system-backup-verify.sh --restore"
+    "lan-guard|lan-guard/lan-guard.conf|cron|$S_LG|/bin/bash $ROOT/lan-guard/lan-guard.sh apply"
+    "heartbeat|heartbeat/heartbeat.conf|cron|$S_HB|/bin/bash $ROOT/heartbeat/heartbeat.sh"
+    "storage-status||cron|$S_SS|/usr/bin/python3 $ROOT/storage-status/storage-status.py"
+    "system-backup|system-backup/system-backup.conf|cron|$S_SB|/bin/bash $ROOT/system-backup/system-backup.sh"
+    "system-backup-verify|system-backup/system-backup.conf|cron|$S_SV|/bin/bash $ROOT/system-backup/system-backup-verify.sh --restore"
 )
 
 if [ "${#WANT[@]}" -eq 0 ]; then

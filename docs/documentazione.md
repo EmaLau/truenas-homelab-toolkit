@@ -92,6 +92,8 @@ I file che contengono indirizzi che valgono come password (heartbeat, system-bac
 | system-backup | cron, ogni giorno alle 03:00 | `system-backup.sh` |
 | system-backup-verify | cron, la domenica alle 05:00 | `system-backup-verify.sh --restore` |
 
+Gli orari si possono cambiare in `toolkit.conf` (`SCHEDULE_HEARTBEAT="*/2 * * * *"` e così via, vedi sotto). Scegli orari che non si sovrappongano ai job che aggiornano o riavviano le app.
+
 Come si comporta:
 
 - **Riconosce i suoi job dalla descrizione** (`truenas-homelab-toolkit: <script>`). Se lo rilanci e tutto è a posto non cambia niente; se qualcosa è diverso, per esempio il percorso dopo aver spostato la cartella, aggiorna i job. Non crea mai una seconda copia.
@@ -108,10 +110,11 @@ Puoi anche creare i job a mano nell'interfaccia web, con i comandi della tabella
 
 | Impostazione | Usata da |
 |---|---|
-| `NOTIFY_URL`, `NOTIFY_FORMAT`, `NOTIFY_TOKEN` | heartbeat, system-backup |
+| `NOTIFY_URL`, `NOTIFY_FORMAT`, `NOTIFY_TOKEN`, `NOTIFY_CHAT_ID` | heartbeat, system-backup |
 | `KUMA_URL` | heartbeat |
+| `SCHEDULE_LAN_GUARD`, `SCHEDULE_HEARTBEAT`, `SCHEDULE_STORAGE_STATUS`, `SCHEDULE_SYSTEM_BACKUP`, `SCHEDULE_SYSTEM_BACKUP_VERIFY` | install.sh: l'orario di ogni job (5 campi del cron) |
 
-Un valore lasciato **vuoto** nel file dello script prende quello di `toolkit.conf`; un valore scritto lì vince. Le tre impostazioni delle notifiche vanno insieme: se uno script ha il suo `NOTIFY_URL`, usa anche il suo formato e il suo token.
+Un valore lasciato **vuoto** nel file dello script prende quello di `toolkit.conf`; un valore scritto lì vince. Le impostazioni delle notifiche vanno insieme: se uno script ha il suo `NOTIFY_URL`, usa anche il suo formato, il suo token e la sua chat.
 
 # lan-guard
 
@@ -209,8 +212,9 @@ Ogni parte è facoltativa e viene saltata se le sue impostazioni sono vuote; sen
 | `CHECKS` | vuoto | Controlli, uno per voce: `"NOME|TOKEN_KUMA|COMANDO"` |
 | `CHECK_TIMEOUT` | `20` | Secondi a disposizione di ogni controllo |
 | `NOTIFY_URL` | vuoto | Indirizzo del topic ntfy o del webhook |
-| `NOTIFY_FORMAT` | `ntfy` | `ntfy` o `json` |
-| `NOTIFY_TOKEN` | vuoto | Inviato come `Authorization: Bearer <token>` |
+| `NOTIFY_FORMAT` | `ntfy` | `ntfy`, `json` o `telegram` |
+| `NOTIFY_TOKEN` | vuoto | Inviato come `Authorization: Bearer <token>` (ntfy, json) |
+| `NOTIFY_CHAT_ID` | vuoto | Solo Telegram: la chat che riceve i messaggi |
 
 `KUMA_URL` e le impostazioni delle notifiche possono venire da `toolkit.conf`.
 
@@ -241,6 +245,8 @@ Solo sui cambiamenti: quando un controllo va giù e quando torna su, mai ogni mi
 ```json
 {"host": "nas", "check": "nextcloud", "status": "down", "msg": "exit 7: ...", "time": 1795102290}
 ```
+
+- `NOTIFY_FORMAT=telegram` manda titolo e messaggio tramite un bot di Telegram: `NOTIFY_URL="https://api.telegram.org/bot<token>/sendMessage"` (il token del bot, da @BotFather) e la chat in `NOTIFY_CHAT_ID`. L'indirizzo contiene il token: tieni il file con `chmod 600`.
 
 Le notifiche riguardano solo i controlli: un NAS spento non può avvisare di niente, ed è per questo che c'è la parte 1.
 
@@ -382,8 +388,9 @@ Il lavoro avviene in una cartella `.incomplete-*` rinominata solo alla fine, cos
 | `MYSQL_DUMPS` | vuoto | Database MariaDB/MySQL, stesso formato |
 | `ARCHIVES` | vuoto | Archivi di cartelle (vedi sotto) |
 | `APP_START_TIMEOUT` | `300` | Secondi di attesa perché un'app fermata torni accesa |
+| `APP_IDLE_CHECKS` | vuoto | Attesa prima di fermare un'app occupata: `("APP|COMANDO|ATTESA_MASSIMA_SECONDI" ...)` (vedi sotto) |
 | `HEALTHCHECKS_URL` | vuoto | Riceve un ping all'avvio, alla riuscita e all'errore |
-| `NOTIFY_URL`, `NOTIFY_FORMAT`, `NOTIFY_TOKEN` | vuoto, `ntfy`, vuoto | Notifiche, come in heartbeat |
+| `NOTIFY_URL`, `NOTIFY_FORMAT`, `NOTIFY_TOKEN`, `NOTIFY_CHAT_ID` | vuoto, `ntfy`, vuoto, vuoto | Notifiche, come in heartbeat (ntfy, json o telegram) |
 | `NOTIFY_ON` | `failure` | `failure` o `always` (gli avvisi vengono notificati sempre) |
 | `PG_IMAGE`, `MYSQL_IMAGE` | `postgres:18-alpine`, `mariadb:11` | Immagini usate da `--restore` |
 
@@ -415,6 +422,14 @@ ARCHIVES=(
 | `ESCLUSIONI` | Pattern di tar, confrontati con i percorsi senza la `/` iniziale (es. `*/cache`) |
 | `OBBLIGATORI` | Percorsi che devono finire nell'archivio, altrimenti il backup fallisce |
 
+**App occupate.** Alcune app non andrebbero fermate a metà lavoro (una copia, una conversione). `APP_IDLE_CHECKS` dà a un'app del genere un comando che esce con 0 quando si può fermare, per esempio uno script che chiede all'API dell'app se sta copiando:
+
+```bash
+APP_IDLE_CHECKS=("auto-disk-copy|/mnt/tank/scripts/autodiskcopy-idle.sh|2700")
+```
+
+Prima di fermare l'app, il comando viene provato ogni minuto per al massimo `ATTESA_MASSIMA_SECONDI`. Se l'app è ancora occupata **non viene fermata**: il suo archivio si fa con l'app accesa, con un avviso nel log e nella notifica.
+
 Ferma le app i cui dati devono essere coerenti sul disco (per esempio un database SQLite) e archivia il resto con le app accese; in un archivio fatto ad app accese, i file che cambiano durante la lettura sono un avviso, non un errore. Le app fermate vengono riaccese **anche se il backup fallisce**, e il backup fallisce se una di loro non è di nuovo accesa dopo `APP_START_TIMEOUT` secondi. I percorsi vengono salvati senza la `/` iniziale, così un archivio si estrae nella cartella che scegli. I percorsi non possono contenere virgole.
 
 ## Conservazione
@@ -425,7 +440,7 @@ Dopo ogni backup riuscito: si tengono tutti i backup degli ultimi `KEEP_DAILY` g
 
 - `HEALTHCHECKS_URL` riceve `/start` all'inizio, l'indirizzo semplice alla riuscita e `/fail` all'errore. Con un periodo di un giorno in Healthchecks, scatta l'allarme anche per un backup che non è partito.
 - `NOTIFY_URL` riceve un messaggio quando il backup fallisce; quando riesce, solo se ci sono avvisi, o sempre con `NOTIFY_ON="always"`.
-- `BACKUP_DIR/status/last_run.json` descrive l'ultima esecuzione (`status`, `timestamp`, dimensione, durata, avvisi o codice di errore), `last_success.json` l'ultima riuscita, `last_verify.json` l'ultima verifica. `BACKUP_DIR/latest` punta al backup più recente, e il log sta in `BACKUP_DIR/logs/`.
+- `BACKUP_DIR/status/last_run.json` descrive l'ultima esecuzione (`status`, `timestamp`, `version` di TrueNAS, dimensione, durata, avvisi o codice di errore), `last_success.json` l'ultima riuscita, `last_verify.json` l'ultima verifica. `BACKUP_DIR/latest` punta al backup più recente, e il log sta in `BACKUP_DIR/logs/`.
 - Gira un solo backup alla volta.
 
 ## Verificare un backup

@@ -25,8 +25,9 @@ TAILSCALE_CONTAINER="ix-tailscale-tailscale-1"
 CHECKS=()            # "NAME|KUMA_TOKEN|COMMAND"; the token can be empty
 CHECK_TIMEOUT=20     # seconds per check command
 NOTIFY_URL=""        # ntfy topic URL (https://ntfy.sh/<topic>) or webhook URL
-NOTIFY_FORMAT="ntfy" # ntfy (plain text + headers) or json
+NOTIFY_FORMAT="ntfy" # ntfy (plain text + headers), json, or telegram
 NOTIFY_TOKEN=""      # optional: sent as "Authorization: Bearer <token>"
+NOTIFY_CHAT_ID=""    # telegram only: the chat that receives the messages
 
 [ -f "$DIR/PAUSE" ] && exit 0
 # Warn about untested TrueNAS versions, only when run by hand (not from cron).
@@ -43,15 +44,15 @@ load() {   # source a settings file, warning if other users can read its secrets
 # Shared settings (toolkit.conf in the toolkit folder): an empty value in
 # heartbeat.conf means "use the shared one". Notification settings go together.
 TK="${TOOLKIT_CONF:-$DIR/../toolkit.conf}"
-TK_NOTIFY=("" "" "") TK_KUMA_URL=""
+TK_NOTIFY=("" "" "" "") TK_KUMA_URL=""
 if [ -f "$TK" ]; then
   load "$TK"
-  TK_NOTIFY=("$NOTIFY_URL" "$NOTIFY_FORMAT" "$NOTIFY_TOKEN") TK_KUMA_URL="$KUMA_URL"
-  NOTIFY_URL="" NOTIFY_FORMAT="ntfy" NOTIFY_TOKEN="" KUMA_URL=""
+  TK_NOTIFY=("$NOTIFY_URL" "$NOTIFY_FORMAT" "$NOTIFY_TOKEN" "$NOTIFY_CHAT_ID") TK_KUMA_URL="$KUMA_URL"
+  NOTIFY_URL="" NOTIFY_FORMAT="ntfy" NOTIFY_TOKEN="" NOTIFY_CHAT_ID="" KUMA_URL=""
 fi
 [ -f "$CONF" ] && load "$CONF"
 if [ -z "$NOTIFY_URL" ] && [ -n "${TK_NOTIFY[0]}" ]; then
-  NOTIFY_URL="${TK_NOTIFY[0]}" NOTIFY_FORMAT="${TK_NOTIFY[1]:-ntfy}" NOTIFY_TOKEN="${TK_NOTIFY[2]}"
+  NOTIFY_URL="${TK_NOTIFY[0]}" NOTIFY_FORMAT="${TK_NOTIFY[1]:-ntfy}" NOTIFY_TOKEN="${TK_NOTIFY[2]}" NOTIFY_CHAT_ID="${TK_NOTIFY[3]}"
 fi
 [ -n "$KUMA_URL" ] || KUMA_URL="$TK_KUMA_URL"
 
@@ -63,7 +64,9 @@ for C in ${CHECKS[@]+"${CHECKS[@]}"}; do
   [ -z "$token" ] || [ -n "$KUMA_URL" ] || fail "check '$name' has a Kuma token but KUMA_URL is empty"
 done
 [[ "$CHECK_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || fail "CHECK_TIMEOUT must be a number of seconds"
-case "$NOTIFY_FORMAT" in ntfy|json) ;; *) fail "NOTIFY_FORMAT must be ntfy or json" ;; esac
+case "$NOTIFY_FORMAT" in ntfy|json|telegram) ;; *) fail "NOTIFY_FORMAT must be ntfy, json or telegram" ;; esac
+[ "$NOTIFY_FORMAT" != telegram ] || [ -z "$NOTIFY_URL" ] || [ -n "$NOTIFY_CHAT_ID" ] \
+  || fail "NOTIFY_FORMAT=telegram needs NOTIFY_CHAT_ID"
 TAILSCALE=no
 [ -n "$KUMA_URL" ] && [ -n "$KUMA_TOKEN" ] && TAILSCALE=yes
 if [ -z "$HEALTHCHECKS_URL" ] && [ "$TAILSCALE" = no ] && [ "${#CHECKS[@]}" -eq 0 ]; then
@@ -82,12 +85,16 @@ notify() {
   local host title auth=()
   host="$(hostname)"
   [ -n "$NOTIFY_TOKEN" ] && auth=(-H "Authorization: Bearer $NOTIFY_TOKEN")
-  if [ "$NOTIFY_FORMAT" = json ]; then
+  if [ "$2" = down ]; then title="$host: $1 is DOWN"; else title="$host: $1 is back up"; fi
+  if [ "$NOTIFY_FORMAT" = telegram ]; then
+    curl -fsS -m 10 -o /dev/null --data-urlencode "chat_id=$NOTIFY_CHAT_ID" \
+      --data-urlencode "text=$title
+$3" "$NOTIFY_URL"
+  elif [ "$NOTIFY_FORMAT" = json ]; then
     python3 -c 'import json,sys,time; print(json.dumps({"host": sys.argv[1], "check": sys.argv[2], "status": sys.argv[3], "msg": sys.argv[4], "time": int(time.time())}))' \
       "$host" "$1" "$2" "$3" \
       | curl -fsS -m 10 -o /dev/null ${auth[@]+"${auth[@]}"} -H "Content-Type: application/json" --data-binary @- "$NOTIFY_URL"
   else
-    if [ "$2" = down ]; then title="$host: $1 is DOWN"; else title="$host: $1 is back up"; fi
     curl -fsS -m 10 -o /dev/null ${auth[@]+"${auth[@]}"} -H "Title: $title" \
       -H "Tags: $([ "$2" = down ] && echo rotating_light || echo white_check_mark)" \
       -H "Priority: $([ "$2" = down ] && echo high || echo default)" \
