@@ -1,0 +1,14 @@
+# shellcheck shell=bash disable=SC2034  # sourced by heartbeat.sh and system-backup
+# Optional settings shared by several scripts: copy to toolkit.conf (in the
+# toolkit folder, next to install.sh) and run: chmod 600 toolkit.conf
+# heartbeat and system-backup read this file first, then their own settings
+# file, which wins for any value set in both. lan-guard and storage-status do
+# not use it. Another location: set TOOLKIT_CONF=/path/to/file.
+
+# Notifications (ntfy topic URL or JSON webhook), used by heartbeat and system-backup
+NOTIFY_URL=""
+NOTIFY_FORMAT="ntfy"
+NOTIFY_TOKEN=""
+
+# Base address of Uptime Kuma, used by heartbeat
+KUMA_URL=""
