@@ -4,7 +4,9 @@
 # Leave a part empty to skip it.
 
 # Part 1: ping URL of a Healthchecks.io check (or a self-hosted Healthchecks),
-# e.g. https://hc-ping.com/<uuid>. Set the check period to 1 minute.
+# e.g. https://hc-ping.com/<uuid>. Set the check period to 1 minute. Any service
+# that takes a plain GET as a heartbeat works too (e.g. an Uptime Kuma push URL
+# on another machine).
 HEALTHCHECKS_URL=""
 
 # Part 2: Uptime Kuma push monitor for the Tailscale state.
@@ -14,3 +16,25 @@ KUMA_URL=""
 KUMA_TOKEN=""
 # Name of the Tailscale container (see: docker ps --format '{{.Names}}')
 TAILSCALE_CONTAINER="ix-tailscale-tailscale-1"
+
+# Part 3: generic checks, one per entry: "NAME|KUMA_TOKEN|COMMAND".
+# The command runs with bash; exit code 0 = up, anything else = down. The first
+# line of its output becomes the message. Each check can push to its own Kuma
+# push monitor (needs KUMA_URL); leave the token empty to use the check only for
+# notifications. NAME: letters, digits, dot, dash, underscore.
+#CHECKS=(
+#  "pools|<kuma-token>|zpool status -x | grep -q 'all pools are healthy'"
+#  "nextcloud||curl -fsS -m 5 -o /dev/null http://127.0.0.1:30027/status.php"
+#)
+CHECKS=()
+# Seconds each check command may run before it counts as down
+CHECK_TIMEOUT=20
+
+# Notifications: one message when a check of part 2 or 3 goes down or comes back
+# up (not every minute). NOTIFY_FORMAT=ntfy sends plain text with ntfy headers to
+# a topic URL, e.g. https://ntfy.sh/<topic>; NOTIFY_FORMAT=json posts
+# {"host","check","status","msg","time"} to any webhook.
+NOTIFY_URL=""
+NOTIFY_FORMAT="ntfy"
+# Optional access token, sent as "Authorization: Bearer <token>"
+NOTIFY_TOKEN=""

@@ -17,8 +17,14 @@ All notable changes to this project are documented here. The format follows [Kee
 - `storage-status`: `generated_epoch`, `thresholds` and `errors` at the top of the JSON. New fields only: `schema_version` stays 1.
 - `tests/storage-status-test.py`: storage-status tested in CI against fake `midclt`, `zfs` and `rclone`.
 
+- `heartbeat`: generic checks (`CHECKS`): any command, exit code 0 = up, with a time limit (`CHECK_TIMEOUT`) and its own Uptime Kuma push monitor, including the time it took.
+- `heartbeat`: notifications to ntfy or to a JSON webhook (`NOTIFY_URL`, `NOTIFY_FORMAT`, `NOTIFY_TOKEN`) when a check goes down or comes back up.
+- `heartbeat`: only one run at a time (`flock`): a run still in progress makes the next one skip.
+- `tests/heartbeat-test.sh`: heartbeat tested in CI with fake `curl` and `docker`.
+
 ### Changed
 
+- `heartbeat`: settings are checked before anything runs; an invalid entry stops it with an error.
 - `storage-status`: each section is collected on its own; a failing one no longer stops the script or leaves the JSON file stale: the error is recorded in `errors` and the exit status is 1.
 - `lan-guard dry-run` prints the IPv6 rules too, since they can now differ from the IPv4 ones.
 
