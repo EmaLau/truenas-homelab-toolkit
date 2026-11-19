@@ -1,0 +1,20 @@
+{
+ "schema_version": 1,
+ "generated_at": "2026-11-19T16:31:30+01:00",
+ "pools": {
+  "tank": {"status": "ONLINE", "size": 27986006900736, "free": 27234230513664, "used": 751776387072, "free_pct": 97},
+  "offline": {"status": "OFFLINE", "size": null, "free": null, "used": null, "free_pct": null}
+ },
+ "cloud": {
+  "Microsoft OneDrive": {"id": 1, "provider": "onedrive", "status": "OK",
+                         "total": 1239098064896, "used": 24910810317, "free": 1214187254579, "free_pct": 98},
+  "Google Drive": {"id": 2, "provider": "google_drive", "status": "ERROR", "error": "TimeoutExpired"}
+ },
+ "snapshot_space": {"tank": 8137539432, "boot-pool": 227655680},
+ "snapshots": {
+  "tank/data": {"tasks": [2, 3], "recursive": false, "count": 39, "bytes": 8136843792,
+                "last": "auto-2026-11-19_02-00", "last_epoch": 1795050000, "age_hours": 14.53},
+  "tank/new": {"tasks": [4], "recursive": true, "count": 0, "bytes": 0,
+               "last": null, "last_epoch": null, "age_hours": null}
+ }
+}

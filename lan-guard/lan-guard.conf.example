@@ -1,0 +1,6 @@
+# shellcheck shell=bash disable=SC2034  # sourced by lan-guard.sh
+# Interface connected to the home LAN (see `ip -br link`)
+LAN_IF="eth0"
+# TCP ports that must not be reachable from the LAN (admin-only apps),
+# e.g. a monitoring dashboard and a disk health UI
+PORTS=(30001 30002)

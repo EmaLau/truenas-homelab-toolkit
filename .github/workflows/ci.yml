@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint (shellcheck, ruff, schema)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Shell syntax
+        run: for f in $(git ls-files '*.sh'); do bash -n "$f"; done
+
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          shellcheck $(git ls-files '*.sh' '*.conf.example')
+
+      - name: ruff
+        run: |
+          pipx run ruff==0.17.5 check .
+          pipx run ruff==0.17.5 format --check .
+
+      - name: Python syntax (3.11, as on TrueNAS 25.10)
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python -m py_compile storage-status/storage-status.py
+
+      - name: storage-status example matches the schema
+        run: pipx run check-jsonschema==0.39.0 --schemafile docs/storage-status.schema.json tests/storage-status.example.json
+
+  lan-guard:
+    name: lan-guard tests (container)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run the tests in a throwaway container
+        run: |
+          docker run --rm --cap-add NET_ADMIN -v "$PWD":/src:ro alpine:3.20 \
+            sh -c 'apk add -q iptables ip6tables bash && bash /src/tests/lan-guard-test.sh'

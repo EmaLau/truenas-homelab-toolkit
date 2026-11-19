@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EmaLau/truenas-homelab-toolkit/blob/main/docs/storage-status.schema.json",
+  "title": "storage-status output",
+  "description": "File written by storage-status.py. Sizes are in bytes, times are Unix timestamps or hours. A field is null when the value is unknown.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "pools", "cloud", "snapshot_space", "snapshots"],
+  "properties": {
+    "schema_version": {
+      "description": "Incremented on incompatible changes.",
+      "const": 1
+    },
+    "generated_at": {
+      "description": "When the file was written, ISO 8601 with the NAS time zone offset.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "pools": {
+      "description": "Every pool returned by pool.query, by pool name. The boot pool is not included.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status", "size", "free", "used", "free_pct"],
+        "properties": {
+          "status": {"description": "Pool status from TrueNAS, e.g. ONLINE, DEGRADED, OFFLINE.", "type": ["string", "null"]},
+          "size": {"$ref": "#/$defs/bytes"},
+          "free": {"$ref": "#/$defs/bytes"},
+          "used": {"$ref": "#/$defs/bytes"},
+          "free_pct": {"$ref": "#/$defs/percent"}
+        }
+      }
+    },
+    "cloud": {
+      "description": "Cloud credentials that report their space (OneDrive and Google Drive), by credential name. Other providers are skipped.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "provider", "status"],
+        "properties": {
+          "id": {"description": "Credential id in TrueNAS.", "type": "integer"},
+          "provider": {"enum": ["onedrive", "google_drive"]},
+          "status": {
+            "description": "OK; LOW below 20% free; CRITICAL below 10% free; ERROR when rclone could not read the space.",
+            "enum": ["OK", "LOW", "CRITICAL", "ERROR"]
+          },
+          "error": {"description": "Only with status ERROR: the exception type.", "type": "string"},
+          "total": {"$ref": "#/$defs/bytes"},
+          "used": {"$ref": "#/$defs/bytes"},
+          "free": {"$ref": "#/$defs/bytes"},
+          "free_pct": {"$ref": "#/$defs/percent"}
+        }
+      }
+    },
+    "snapshot_space": {
+      "description": "Space used by snapshots (sum of usedbysnapshots), by pool name. Includes the boot pool.",
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "snapshots": {
+      "description": "One entry per dataset with an enabled periodic snapshot task, by dataset name. Several tasks on the same dataset are merged.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["tasks", "recursive", "count", "bytes", "last", "last_epoch", "age_hours"],
+        "properties": {
+          "tasks": {"description": "Ids of the snapshot tasks.", "type": "array", "items": {"type": "integer"}},
+          "recursive": {"description": "True if at least one task is recursive.", "type": "boolean"},
+          "count": {"description": "Snapshots of the dataset itself whose name matches a task naming schema; manual snapshots are not counted.", "type": "integer", "minimum": 0},
+          "bytes": {"description": "usedbysnapshots of the dataset and, if recursive, of its children, minus excluded datasets.", "type": "integer", "minimum": 0},
+          "last": {"description": "Name of the newest snapshot (after the @), null if there is none yet.", "type": ["string", "null"]},
+          "last_epoch": {"description": "Creation time of the newest snapshot.", "type": ["integer", "null"]},
+          "age_hours": {"description": "Age of the newest snapshot when the file was written.", "type": ["number", "null"]}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "bytes": {"type": ["integer", "null"], "minimum": 0},
+    "percent": {"type": ["integer", "null"], "minimum": 0, "maximum": 100}
+  }
+}

@@ -1,0 +1,16 @@
+# shellcheck shell=bash disable=SC2034  # sourced by heartbeat.sh
+# Copy to heartbeat.conf and run: chmod 600 heartbeat.conf
+# (the URLs below work as passwords: anyone who has them can send fake pings).
+# Leave a part empty to skip it.
+
+# Part 1: ping URL of a Healthchecks.io check (or a self-hosted Healthchecks),
+# e.g. https://hc-ping.com/<uuid>. Set the check period to 1 minute.
+HEALTHCHECKS_URL=""
+
+# Part 2: Uptime Kuma push monitor for the Tailscale state.
+# KUMA_URL is the base address of Uptime Kuma, e.g. http://127.0.0.1:3001;
+# KUMA_TOKEN is the last part of the push URL that Kuma shows (/api/push/<token>).
+KUMA_URL=""
+KUMA_TOKEN=""
+# Name of the Tailscale container (see: docker ps --format '{{.Names}}')
+TAILSCALE_CONTAINER="ix-tailscale-tailscale-1"
