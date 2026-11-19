@@ -1,0 +1,51 @@
+{
+ "_comment": "Fake answers for tests/storage-status-test.py. Invented data, shaped like TrueNAS 25.10 (midclt), zfs and rclone output.",
+ "midclt": {
+  "pool.query": [
+   {"name": "tank", "status": "ONLINE", "healthy": true, "size": 1000, "free": 400,
+    "scan": {"function": "SCRUB", "state": "FINISHED", "start_time": {"$date": 1795000000000},
+             "end_time": {"$date": 1795003600000}, "percentage": 100.0, "errors": 0},
+    "topology": {
+     "data": [{"type": "MIRROR", "name": "mirror-0", "status": "ONLINE", "stats": {}, "children": [
+      {"type": "DISK", "name": "guid-a", "disk": "sda", "status": "ONLINE", "stats": {"read_errors": 0, "write_errors": 0, "checksum_errors": 0}, "children": []},
+      {"type": "DISK", "name": "guid-b", "disk": "sdb", "status": "ONLINE", "stats": {"read_errors": 0, "write_errors": 0, "checksum_errors": 2}, "children": []}
+     ]}],
+     "cache": [{"type": "DISK", "name": "guid-c", "disk": "nvme0n1", "status": "ONLINE", "stats": {"read_errors": 0, "write_errors": 0, "checksum_errors": 0}, "children": []}],
+     "log": [], "spare": [], "special": [], "dedup": []
+    }},
+   {"name": "fast", "status": "DEGRADED", "healthy": false, "size": 1000, "free": 50,
+    "scan": {"function": "RESILVER", "state": "SCANNING", "start_time": {"$date": 1795060000000},
+             "end_time": null, "percentage": 42.46, "errors": 0},
+    "topology": {"data": [{"type": "MIRROR", "name": "mirror-0", "status": "DEGRADED", "stats": {}, "children": [
+      {"type": "DISK", "name": "guid-d", "disk": "sdc", "status": "ONLINE", "stats": {"read_errors": 0, "write_errors": 0, "checksum_errors": 0}, "children": []},
+      {"type": "DISK", "name": "1234567890", "disk": null, "status": "UNAVAIL", "stats": {"read_errors": 0, "write_errors": 0, "checksum_errors": 0}, "children": []}
+     ]}]}},
+   {"name": "offline", "status": "OFFLINE", "healthy": false, "size": 0, "free": 0, "scan": null, "topology": null}
+  ],
+  "cloudsync.credentials.query": [
+   {"id": 1, "name": "My \"OneDrive\"", "provider": {"type": "ONEDRIVE", "client_id": "", "client_secret": "",
+    "token": "{\"access_token\":\"old\",\"refresh_token\":\"r1\"}", "drive_type": "PERSONAL", "drive_id": "d1"}},
+   {"id": 2, "name": "Drive", "provider": {"type": "GOOGLE_DRIVE", "client_id": "", "client_secret": "",
+    "token": "{\"access_token\":\"keep\",\"refresh_token\":\"r2\"}"}},
+   {"id": 3, "name": "S3 bucket", "provider": {"type": "S3"}}
+  ],
+  "cloudsync.query": [
+   {"id": 1, "description": "Documents to OneDrive", "direction": "PUSH", "enabled": true,
+    "credentials": {"id": 1, "name": "My \"OneDrive\"", "provider": {"type": "ONEDRIVE"}},
+    "job": {"state": "SUCCESS", "time_started": {"$date": 1795064402000}, "time_finished": {"$date": 1795064450000}, "error": null}},
+   {"id": 2, "description": "Photos", "direction": "PUSH", "enabled": true,
+    "credentials": {"id": 2, "name": "Drive", "provider": {"type": "GOOGLE_DRIVE"}},
+    "job": {"state": "FAILED", "time_started": {"$date": 1795064402000}, "time_finished": {"$date": 1795064410000}, "error": "[EFAULT] rclone failed"}},
+   {"id": 3, "description": "Photos", "direction": "PULL", "enabled": false, "credentials": {"id": 2, "name": "Drive"}, "job": null}
+  ],
+  "pool.snapshottask.query": [
+   {"id": 1, "dataset": "tank/data", "enabled": true, "recursive": false, "exclude": [], "naming_schema": "auto-%Y-%m-%d_%H-%M"},
+   {"id": 2, "dataset": "tank/data", "enabled": true, "recursive": false, "exclude": [], "naming_schema": "weekly-%Y-%m-%d"},
+   {"id": 3, "dataset": "tank/apps", "enabled": true, "recursive": true, "exclude": ["tank/apps/cache"], "naming_schema": "auto-%Y-%m-%d_%H-%M"},
+   {"id": 4, "dataset": "tank/old", "enabled": false, "recursive": false, "exclude": [], "naming_schema": "auto-%Y-%m-%d_%H-%M"}
+  ]
+ },
+ "zfs_filesystems": "tank\t0\ntank/data\t300\ntank/apps\t100\ntank/apps/db\t50\ntank/apps/cache\t999\nboot-pool\t7\n",
+ "zfs_snapshots": "tank/data@manual-before-upgrade\t1795000000\ntank/data@auto-2026-11-18_02-00\t1795050000\ntank/data@weekly-2026-11-19\t1795060000\ntank/apps@auto-2026-11-19_02-00\t1795061000\n",
+ "rclone_about": {"onedrive": {"total": 1000, "used": 950, "free": 50}, "drive": {"total": 2000, "used": 200, "free": 1800}}
+}

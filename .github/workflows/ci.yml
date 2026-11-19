@@ -33,7 +33,13 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - run: python -m py_compile storage-status/storage-status.py
+      - run: python -m py_compile storage-status/storage-status.py tests/storage-status-test.py
+
+      - name: storage-status tests (fake midclt, zfs and rclone)
+        run: |
+          python tests/storage-status-test.py "$RUNNER_TEMP/ss"
+          pipx run check-jsonschema==0.39.0 --schemafile docs/storage-status.schema.json \
+            "$RUNNER_TEMP/ss/normal.json" "$RUNNER_TEMP/ss/failing.json"
 
       - name: storage-status example matches the schema
         run: pipx run check-jsonschema==0.39.0 --schemafile docs/storage-status.schema.json tests/storage-status.example.json

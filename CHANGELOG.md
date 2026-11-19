@@ -10,8 +10,16 @@ All notable changes to this project are documented here. The format follows [Kee
 - `lan-guard`: optional logging of dropped connections (`LOG_DROPS`, `LOG_LIMIT`), rate-limited, with the prefix `lan-guard-drop:`.
 - `lan-guard`: `apply` and `status` warn when `FORWARD` does not jump to `DOCKER-USER` (Docker stopped, or using its nftables backend): the container rules would then block nothing.
 
+- `storage-status`: settings file `storage-status.conf` (see `storage-status.conf.example`), overridable by environment variables.
+- `storage-status`: configurable free space thresholds (`WARN_PCT`, `CRIT_PCT`), now also applied to pools (`space_status`).
+- `storage-status`: last run of every cloud sync task (`cloud_sync`: state, start, end, error).
+- `storage-status`: optional Prometheus textfile output (`PROMETHEUS_OUT`), gauges named `storage_status_*`.
+- `storage-status`: `generated_epoch`, `thresholds` and `errors` at the top of the JSON. New fields only: `schema_version` stays 1.
+- `tests/storage-status-test.py`: storage-status tested in CI against fake `midclt`, `zfs` and `rclone`.
+
 ### Changed
 
+- `storage-status`: each section is collected on its own; a failing one no longer stops the script or leaves the JSON file stale: the error is recorded in `errors` and the exit status is 1.
 - `lan-guard dry-run` prints the IPv6 rules too, since they can now differ from the IPv4 ones.
 
 ## [1.1.0] — 2026-11-19

@@ -1,37 +1,25 @@
 {
  "schema_version": 1,
  "generated_at": "2026-11-19T16:31:30+01:00",
+ "generated_epoch": 1795102290,
+ "thresholds": {"warn_pct": 20, "crit_pct": 10},
+ "errors": {},
  "pools": {
-  "tank": {"status": "ONLINE", "size": 27986006900736, "free": 27234230513664, "used": 751776387072, "free_pct": 97,
-           "healthy": true,
-           "scan": {"function": "SCRUB", "state": "FINISHED", "start": 1792879202, "end": 1792879863,
-                    "errors": 0, "progress_pct": null, "age_hours": 619.67},
-           "disks": [
-            {"name": "sda", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0},
-            {"name": "sdb", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}
-           ]},
-  "fast": {"status": "DEGRADED", "size": 236223201280, "free": 202192793600, "used": 34030407680, "free_pct": 86,
-           "healthy": false,
-           "scan": {"function": "RESILVER", "state": "SCANNING", "start": 1795060000, "end": null,
-                    "errors": 0, "progress_pct": 42.5, "age_hours": null},
-           "disks": [
-            {"name": "sdc", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0},
-            {"name": "1234567890123456789", "role": "data", "status": "UNAVAIL", "read_errors": 0, "write_errors": 0, "checksum_errors": 0},
-            {"name": "sdd", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}
-           ]},
-  "offline": {"status": "OFFLINE", "size": null, "free": null, "used": null, "free_pct": null,
-              "healthy": false, "scan": null, "disks": []}
+  "tank": {"status": "ONLINE", "size": 27986006900736, "free": 27234230513664, "used": 751776387072, "free_pct": 97, "healthy": true, "scan": {"function": "SCRUB", "state": "FINISHED", "start": 1792879202, "end": 1792879863, "errors": 0, "progress_pct": null, "age_hours": 619.67}, "disks": [{"name": "sda", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}, {"name": "sdb", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}], "space_status": "OK"},
+  "fast": {"status": "DEGRADED", "size": 236223201280, "free": 202192793600, "used": 34030407680, "free_pct": 86, "healthy": false, "scan": {"function": "RESILVER", "state": "SCANNING", "start": 1795060000, "end": null, "errors": 0, "progress_pct": 42.5, "age_hours": null}, "disks": [{"name": "sdc", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}, {"name": "1234567890123456789", "role": "data", "status": "UNAVAIL", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}, {"name": "sdd", "role": "data", "status": "ONLINE", "read_errors": 0, "write_errors": 0, "checksum_errors": 0}], "space_status": "OK"},
+  "offline": {"status": "OFFLINE", "size": null, "free": null, "used": null, "free_pct": null, "healthy": false, "scan": null, "disks": [], "space_status": null}
  },
  "cloud": {
-  "Microsoft OneDrive": {"id": 1, "provider": "onedrive", "status": "OK",
-                         "total": 1239098064896, "used": 24910810317, "free": 1214187254579, "free_pct": 98},
+  "Microsoft OneDrive": {"id": 1, "provider": "onedrive", "status": "OK", "total": 1239098064896, "used": 24910810317, "free": 1214187254579, "free_pct": 98},
   "Google Drive": {"id": 2, "provider": "google_drive", "status": "ERROR", "error": "TimeoutExpired"}
+ },
+ "cloud_sync": {
+  "Documents to OneDrive": {"id": 1, "credential": "Microsoft OneDrive", "direction": "PUSH", "enabled": true, "state": "SUCCESS", "started": 1795064402, "finished": 1795064450, "age_hours": 10.5, "error": null},
+  "Photos": {"id": 2, "credential": "Google Drive", "direction": "PUSH", "enabled": true, "state": "FAILED", "started": 1795064402, "finished": 1795064410, "age_hours": 10.51, "error": "[EFAULT] rclone failed"}
  },
  "snapshot_space": {"tank": 8137539432, "boot-pool": 227655680},
  "snapshots": {
-  "tank/data": {"tasks": [2, 3], "recursive": false, "count": 39, "bytes": 8136843792,
-                "last": "auto-2026-11-19_02-00", "last_epoch": 1795050000, "age_hours": 14.53},
-  "tank/new": {"tasks": [4], "recursive": true, "count": 0, "bytes": 0,
-               "last": null, "last_epoch": null, "age_hours": null}
+  "tank/data": {"tasks": [2, 3], "recursive": false, "count": 39, "bytes": 8136843792, "last": "auto-2026-11-19_02-00", "last_epoch": 1795050000, "age_hours": 14.53},
+  "tank/new": {"tasks": [4], "recursive": true, "count": 0, "bytes": 0, "last": null, "last_epoch": null, "age_hours": null}
  }
 }

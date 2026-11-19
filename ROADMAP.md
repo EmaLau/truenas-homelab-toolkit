@@ -18,7 +18,7 @@ In order of priority.
    - ~~Optional logging of dropped connections, rate-limited.~~ Done (`LOG_DROPS`).
 2. **storage-status**
    - ~~Age of the last ZFS scrub and its result for every pool.~~ Done, with pool health and per-disk errors.
-   - Optional Prometheus *textfile* output next to the JSON file.
+   - ~~Optional Prometheus *textfile* output next to the JSON file.~~ Done (`PROMETHEUS_OUT`), with cloud sync results, configurable thresholds and per-section error handling.
 3. **heartbeat**
    - Generic checks: any command whose exit code becomes an up/down push, so one script can watch several services.
 4. **system-backup, generic version**: a new script driven by a config file (pools, apps to archive, PostgreSQL containers to dump, retention), keeping the verified-backup ideas of the example: verified `config.save`, `pg_dump` checked with `pg_restore --list`, checksums, manifest, `.incomplete-*` folders.
@@ -27,7 +27,7 @@ In order of priority.
 ## Maybe later
 
 - A single `toolkit.conf` shared by all scripts.
-- Tests for `storage-status` with recorded `midclt` outputs.
+- ~~Tests for `storage-status` with recorded `midclt` outputs.~~ Done (`tests/storage-status-test.py`).
 
 ## Not planned
 
